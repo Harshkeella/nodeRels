@@ -1,0 +1,17 @@
+# generated decks
+outputs/
+plan.json
+*.pptx
+!backend/templates/
+
+# secrets
+.env
+
+# python
+__pycache__/
+.venv/
+backend/image_engine/cache/
+
+# node
+node_modules/
+frontend/dist/

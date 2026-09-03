@@ -20,9 +20,10 @@ const STAGE_MS = 4000;
 function useStage(active: boolean) {
   const [stage, setStage] = useState(0);
 
+  // No reset needed: a row is added already `processing` and only ever leaves for
+  // done/error, so `active` never goes false -> true and `stage` is 0 at mount.
   useEffect(() => {
     if (!active) return;
-    setStage(0);
     const id = setInterval(
       () => setStage((s) => Math.min(s + 1, STAGES.length - 1)),
       STAGE_MS

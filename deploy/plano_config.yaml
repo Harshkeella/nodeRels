@@ -1,0 +1,34 @@
+# Plano v0.4 configuration. Optional; direct MCP rendering does not depend on Plano.
+version: v0.4.0
+agents:
+  - id: knowledge_pdf
+    url: http://127.0.0.1:8000/internal/agents/pdf
+  - id: knowledge_slides
+    url: http://127.0.0.1:8000/internal/agents/pptx
+  - id: knowledge_video
+    url: http://127.0.0.1:8000/internal/agents/video
+  - id: knowledge_chat
+    url: http://127.0.0.1:8000/internal/agents/chat
+listeners:
+  - type: agent
+    name: noderels
+    address: 127.0.0.1
+    port: 8100
+    router: plano_orchestrator_v1
+    agents:
+      - id: knowledge_pdf
+        description: User explicitly requests creation or export of a PDF document from their knowledge base.
+      - id: knowledge_slides
+        description: User requests creation of a PowerPoint, PPTX, presentation, or slide deck from their knowledge base.
+      - id: knowledge_video
+        description: User requests a narrated video or MP4 from their knowledge, or a video of an existing presentation. Prefer this over slides when both are requested.
+      - id: knowledge_chat
+        description: Questions about knowledge or about how files work, without asking to create a file; also requests that explicitly say not to generate a file.
+# Explicit local model: prevents accidentally relying on Plano's hosted default.
+# Run this model on a Linux GPU host using the official vLLM instructions.
+overrides:
+  agent_orchestration_model: plano/katanemo/Plano-Orchestrator-4B
+model_providers:
+  - model: katanemo/Plano-Orchestrator-4B
+    provider_interface: plano
+    base_url: http://127.0.0.1:8102

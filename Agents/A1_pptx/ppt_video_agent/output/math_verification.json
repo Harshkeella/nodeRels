@@ -1,0 +1,102 @@
+[
+  {
+    "slide_number": 1,
+    "script_file": "C:\\AIProjects\\ppt_video_agent\\scripts\\slide_1.txt",
+    "math": {
+      "solved": [],
+      "skipped": []
+    }
+  },
+  {
+    "slide_number": 2,
+    "script_file": "C:\\AIProjects\\ppt_video_agent\\scripts\\slide_2.txt",
+    "math": {
+      "solved": [],
+      "skipped": [
+        {
+          "source": "Interpret the result as P(y = 1 | x) — the probability of the positive class.",
+          "reason": "Unsupported name: Interpret"
+        }
+      ]
+    }
+  },
+  {
+    "slide_number": 3,
+    "script_file": "C:\\AIProjects\\ppt_video_agent\\scripts\\slide_3.txt",
+    "math": {
+      "solved": [],
+      "skipped": [
+        {
+          "source": "The sigmoid (or logistic) function maps any real number z into the open interval (0, 1). As z grows large and positive, e⁻ᶻ shrinks toward 0, so σ(z) approaches 1. As z becomes very negative, e⁻ᶻ explodes, pulling σ(z) toward 0. At z = 0, the function passes through exactly 0.5 — the natural decision midpoint.",
+          "reason": "The expression contains unsupported characters."
+        },
+        {
+          "source": "A useful property — its own derivative:",
+          "reason": "The expression is empty or too long."
+        },
+        {
+          "source": "This self-referential derivative is exactly why the gradient computation later on turns out so clean.",
+          "reason": "Unsupported name: is"
+        }
+      ]
+    }
+  },
+  {
+    "slide_number": 4,
+    "script_file": "C:\\AIProjects\\ppt_video_agent\\scripts\\slide_4.txt",
+    "math": {
+      "solved": [],
+      "skipped": []
+    }
+  },
+  {
+    "slide_number": 5,
+    "script_file": "C:\\AIProjects\\ppt_video_agent\\scripts\\slide_5.txt",
+    "math": {
+      "solved": [],
+      "skipped": [
+        {
+          "source": "Because σ(z) ≥ 0.5 exactly when z ≥ 0, this threshold on the probability translates back into a condition on the raw linear score: predict class 1 whenever θᵀx ≥ 0. Geometrically, the equation θᵀx = 0 defines a hyperplane in feature space — a straight line in 2D, a flat plane in 3D. Everything on one side is classified as 1, everything on the other side as 0.",
+          "reason": "The expression contains unsupported characters."
+        }
+      ]
+    }
+  },
+  {
+    "slide_number": 6,
+    "script_file": "C:\\AIProjects\\ppt_video_agent\\scripts\\slide_6.txt",
+    "math": {
+      "solved": [],
+      "skipped": []
+    }
+  },
+  {
+    "slide_number": 7,
+    "script_file": "C:\\AIProjects\\ppt_video_agent\\scripts\\slide_7.txt",
+    "math": {
+      "solved": [],
+      "skipped": []
+    }
+  },
+  {
+    "slide_number": 8,
+    "script_file": "C:\\AIProjects\\ppt_video_agent\\scripts\\slide_8.txt",
+    "math": {
+      "solved": [],
+      "skipped": []
+    }
+  },
+  {
+    "slide_number": 9,
+    "script_file": "C:\\AIProjects\\ppt_video_agent\\scripts\\slide_9.txt",
+    "math": {
+      "solved": [],
+      "skipped": [
+        {
+          "source": "A linear score θᵀx is squashed by the sigmoid into a valid probability P(y=1|x).",
+          "reason": "The expression contains unsupported characters."
+        }
+      ]
+    }
+  }
+]

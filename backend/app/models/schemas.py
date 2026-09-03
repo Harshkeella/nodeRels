@@ -1,4 +1,5 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from typing import Literal
 
 
 class DocumentOut(BaseModel):
@@ -81,17 +82,18 @@ class DeleteResult(BaseModel):
 
 
 class ChatMessage(BaseModel):
-    role: str
-    content: str
+    role: Literal["user", "assistant"]
+    content: str = Field(max_length=50000)
 
 
 class ChatRequest(BaseModel):
-    message: str
-    history: list[ChatMessage] = []
+    message: str = Field(min_length=1, max_length=8000)
+    history: list[ChatMessage] = Field(default_factory=list, max_length=100)
     # When set, the turn is persisted to that session and the session's title
     # is generated on the first exchange. Omitted, chat behaves exactly as it
     # did before sessions existed -- nothing is written.
     session_id: str | None = None
+    request_id: str | None = None
 
 
 class SessionOut(BaseModel):
@@ -114,6 +116,7 @@ class SessionMessageOut(BaseModel):
     # Per-source provenance for an assistant turn: what the answer was built
     # from. Persisted so reopening an old session still opens working panels.
     evidence: list[dict] = []
+    artifact_ids: list[str] = []
 
 
 class GraphNodeOut(BaseModel):

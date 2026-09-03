@@ -10,8 +10,10 @@ import type {
   EvidenceSource,
   GroundingVerdict,
   TableResult,
+  Artifact,
 } from "@/lib/api";
 import { DataResultTable } from "@/components/chat/data-result-table";
+import { ArtifactCard } from "@/components/chat/artifact-card";
 
 export interface ChatMessage {
   id: string;
@@ -23,6 +25,7 @@ export interface ChatMessage {
   table?: TableResult;
   error?: string;
   streaming?: boolean;
+  artifact_ids?: string[];
 }
 
 function CodeBlock({ children, ...props }: React.ComponentProps<"pre">) {
@@ -170,9 +173,11 @@ function Sources({
 export function ChatMessageBubble({
   message,
   onOpenEvidence,
+  onOpenArtifact,
 }: {
   message: ChatMessage;
   onOpenEvidence: (evidence: EvidenceSource) => void;
+  onOpenArtifact: (artifact: Artifact) => void;
 }) {
   if (message.role === "user") {
     return (
@@ -207,6 +212,7 @@ export function ChatMessageBubble({
       {message.error && (
         <p className="mt-2 text-destructive">{message.error}</p>
       )}
+      {message.artifact_ids?.map(id => <ArtifactCard key={id} id={id} onOpen={onOpenArtifact} />)}
 
       {/* Flagged, not hidden: the answer already streamed, so the honest move
           is to say which parts the evidence didn't cover. */}

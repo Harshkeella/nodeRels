@@ -1,0 +1,14 @@
+{
+  "name": "deck",
+  "key": "deck",
+  "audience": "deck-agent",
+  "backend": {
+    "port": 8101,
+    "cmd": "{python} -m uvicorn backend.integrated:app --host 127.0.0.1 --port 8101 --no-access-log"
+  },
+  "frontend": {
+    "cwd": "frontend",
+    "port": 5173,
+    "cmd": "npm run dev -- --host 127.0.0.1 --port 5173"
+  }
+}

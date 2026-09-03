@@ -31,9 +31,27 @@ export default function KnowledgePage() {
     }
   }, [setDocuments]);
 
+  // Mount load, deliberately not `refresh()`: calling a function that sets state
+  // from an effect body cascades an extra render, so the updates live in the
+  // promise callbacks instead. `isLoading` already starts true, so there is
+  // nothing to set on the way in -- and the guard stops a slow response from
+  // setting state on an unmounted page.
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    let live = true;
+    listKnowledgeBase()
+      .then((docs) => {
+        if (live) setDocuments(docs);
+      })
+      .catch((e: unknown) => {
+        if (live) setError(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => {
+        if (live) setIsLoading(false);
+      });
+    return () => {
+      live = false;
+    };
+  }, [setDocuments]);
 
   async function handleDelete(docId: string) {
     await deleteKnowledgeDocument(docId);

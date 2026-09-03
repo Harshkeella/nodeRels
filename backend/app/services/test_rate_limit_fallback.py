@@ -99,3 +99,67 @@ def test_unreachable_ollama_warns_instead_of_raising(monkeypatch, caplog):
 
     assert asyncio.run(le.check_ollama_fallback()) is False
     assert "unreachable" in caplog.text
+
+
+def _fake_models(monkeypatch, models):
+    async def fake_get(self, url, **kwargs):
+        return httpx.Response(
+            200,
+            json={"data": [{"id": m} for m in models]},
+            request=httpx.Request("GET", url),
+        )
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+
+
+def _heavy_settings(monkeypatch, key="sk-test", model="gpt-5"):
+    monkeypatch.setattr(le._settings, "heavy_api_key", key)
+    monkeypatch.setattr(le._settings, "heavy_model", model)
+
+
+def test_heavy_provider_is_off_until_both_key_and_model_are_set(monkeypatch):
+    _heavy_settings(monkeypatch, key="sk-test", model="")
+    assert le.heavy_configured() is False
+    assert le.heavy_budget() is None
+    assert asyncio.run(le.check_heavy_provider()) is False
+
+    _heavy_settings(monkeypatch)
+    assert le.heavy_configured() is True
+    assert le.heavy_budget() == le._settings.heavy_context_token_budget
+
+
+def test_unknown_heavy_model_is_caught_at_startup(monkeypatch, caplog):
+    _heavy_settings(monkeypatch, model="does-not-exist")
+    _fake_models(monkeypatch, ["gpt-5", "claude-sonnet-4"])
+
+    assert asyncio.run(le.check_heavy_provider()) is False
+    assert "is not in this account's model list" in caplog.text
+
+
+def test_reachable_heavy_provider_reports_ready(monkeypatch):
+    _heavy_settings(monkeypatch)
+    _fake_models(monkeypatch, ["gpt-5"])
+
+    assert asyncio.run(le.check_heavy_provider()) is True
+
+
+def test_rejected_heavy_key_warns_instead_of_raising(monkeypatch, caplog):
+    """New API answers a bad key with 401, not a connection error."""
+    _heavy_settings(monkeypatch)
+
+    async def unauthorized(self, url, **kwargs):
+        return httpx.Response(401, json={"error": {"message": "Invalid token"}},
+                              request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", unauthorized)
+
+    assert asyncio.run(le.check_heavy_provider()) is False
+    assert "rejected the key or is unreachable" in caplog.text
+
+
+def test_heavy_mode_is_scoped_to_its_block(monkeypatch):
+    _heavy_settings(monkeypatch)
+    assert le._heavy.get() is False
+    with le.heavy():
+        assert le._heavy.get() is True
+    assert le._heavy.get() is False

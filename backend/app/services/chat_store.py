@@ -79,6 +79,13 @@ async def _connect():
 async def init_db() -> None:
     async with aiosqlite.connect(_path()) as db:
         await db.executescript(_SCHEMA)
+        columns = await (await db.execute("PRAGMA table_info(chat_messages)")).fetchall()
+        if "artifact_ids" not in {c[1] for c in columns}:
+            try:
+                await db.execute("ALTER TABLE chat_messages ADD COLUMN artifact_ids TEXT")
+            except aiosqlite.OperationalError as exc:
+                if "duplicate column" not in str(exc).lower():
+                    raise
         await db.commit()
 
 
@@ -148,6 +155,7 @@ async def add_message(
     role: str,
     content: str,
     evidence: list | None = None,
+    artifact_ids: list[str] | None = None,
 ) -> dict:
     """Appending a message bumps the session's `updated_at`, which is what
     orders the sidebar -- so an old thread you replied to today sorts to the
@@ -158,13 +166,14 @@ async def add_message(
         "role": role,
         "content": content,
         "evidence": evidence or [],
+        "artifact_ids": artifact_ids or [],
         "created_at": _now(),
     }
     async with _connect() as db:
         await db.execute(
             "INSERT INTO chat_messages"
-            " (id, session_id, role, content, evidence, created_at)"
-            " VALUES (?, ?, ?, ?, ?, ?)",
+            " (id, session_id, role, content, evidence, created_at, artifact_ids)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
                 message["id"],
                 session_id,
@@ -172,6 +181,7 @@ async def add_message(
                 content,
                 json.dumps(message["evidence"]) if evidence else None,
                 message["created_at"],
+                json.dumps(artifact_ids or []),
             ),
         )
         await db.execute(
@@ -202,7 +212,8 @@ async def list_messages(session_id: str) -> list[dict]:
         )
         rows = await cursor.fetchall()
     return [
-        {**dict(row), "evidence": _decode_evidence(row["evidence"])} for row in rows
+        {**dict(row), "evidence": _decode_evidence(row["evidence"]),
+         "artifact_ids": _decode_evidence(row["artifact_ids"])} for row in rows
     ]
 
 

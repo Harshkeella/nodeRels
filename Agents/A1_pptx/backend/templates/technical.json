@@ -1,0 +1,10 @@
+{
+  "use_for": "engineering reviews, architecture walkthroughs, incident postmortems, data-heavy technical talks",
+  "display_font": "Segoe UI",
+  "body_font": "Segoe UI",
+  "primary": "E6EDF3",
+  "accent": "39B5C9",
+  "bg": "161B22",
+  "text": "AAB4BF",
+  "muted": "5A6672"
+}

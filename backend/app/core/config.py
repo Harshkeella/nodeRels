@@ -17,14 +17,14 @@ class Settings:
     # OpenRouter. 70b-versatile gets 12,000. It shares a bucket with
     # GROQ_EXTRACT_MODEL only when EXTRACTION_BACKEND=llm; on the default
     # gliner backend ingest doesn't touch Groq at all.
-    groq_model: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    groq_model: str = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 
     # Graph building (entity/relationship + keyword extraction). Ingest speed is
     # capped by tokens-per-minute, not by model speed, so extraction goes on
-    # whichever model has the LARGER free-tier TPM budget: 70b-versatile gets
-    # 12,000 TPM where 8b-instant only gets 6,000.
+    # whichever model has the LARGER free-tier TPM budget: gpt-oss-20b is the
+    # cheaper of the two hosted OSS models and carries the wider budget.
     groq_extract_model: str = os.getenv(
-        "GROQ_EXTRACT_MODEL", "llama-3.3-70b-versatile"
+        "GROQ_EXTRACT_MODEL", "openai/gpt-oss-20b"
     )
 
     # Starting size of the extraction token budget. Groq's 429 body reports the
@@ -53,6 +53,28 @@ class Settings:
     # demand, so it now sits behind Groq rather than in front of it.
     openrouter_api_key: str | None = os.getenv("OPENROUTER_API_KEY") or None
     openrouter_model: str = os.getenv("OPENROUTER_MODEL", "openrouter/free")
+
+    # Heavy work only: whole-document generation (PDF/deck/video) and LLM graph
+    # extraction. Both send far more context than a chat turn, which is exactly
+    # what a free-tier per-minute ceiling cannot carry -- and a document written
+    # from 6k tokens of evidence is what fails the grounding check. Ordinary chat
+    # stays on Groq/Ollama. Blank key = nothing changes anywhere.
+    #
+    # kktoken.cc runs New API, an OpenAI-compatible gateway, so this reuses the
+    # same client as Groq and OpenRouter; only key, URL and model differ. Point
+    # the three vars at any other OpenAI-compatible endpoint to switch vendor.
+    heavy_api_key: str | None = os.getenv("KKTOKEN_API_KEY") or None
+    heavy_base_url: str = os.getenv("KKTOKEN_BASE_URL", "https://kktoken.cc/v1")
+    # No default: the model list is per-account, and a guessed name is a 404 on
+    # the first generated document. List yours with
+    #   curl -H "Authorization: Bearer $KKTOKEN_API_KEY" $KKTOKEN_BASE_URL/models
+    heavy_model: str = os.getenv("KKTOKEN_MODEL", "")
+
+    # Context budget for heavy calls only -- the whole point of paying for a long
+    # context is that generation sees more evidence than a free minute allows.
+    heavy_context_token_budget: int = int(
+        os.getenv("HEAVY_CONTEXT_TOKEN_BUDGET", "60000")
+    )
 
     ollama_base_url: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
     ollama_model: str = os.getenv("OLLAMA_MODEL", "llama3.2")
@@ -133,8 +155,12 @@ class Settings:
     # relations + chunks + system prompt). LightRAG's own default is 30,000,
     # which no free-tier Groq model can accept in one minute. Must stay below
     # the query model's TPM limit with headroom for the answer itself.
+    # This is coupled to GROQ_MODEL and breaks silently when that changes:
+    # gpt-oss-120b's free tier is 8,000 TPM, and a budget of 8,000 sent 8,057
+    # tokens -- every call 413'd, waited out the SDK's 40s retry, and fell back
+    # to OpenRouter. Raise this only alongside a model with a wider ceiling.
     query_context_token_budget: int = int(
-        os.getenv("QUERY_CONTEXT_TOKEN_BUDGET", "8000")
+        os.getenv("QUERY_CONTEXT_TOKEN_BUDGET", "6000")
     )
 
     # Cross-encoder re-ranking of retrieved chunks before the context is
@@ -187,8 +213,11 @@ class Settings:
         os.getenv("LLM_LIMIT_USER_RPM", "20")
     )
     llm_user_max_concurrent: int = int(os.getenv("LLM_LIMIT_USER_CONCURRENT", "2"))
-    # 0 disables the daily ceiling. The default is roughly a heavy day of chat
-    # on a free tier, not a hard cost control -- set it against your own plan.
+    # 0 disables the daily ceiling. Sized for chat, where a turn is a few
+    # thousand tokens -- but one generated document is a single call of roughly
+    # HEAVY_CONTEXT_TOKEN_BUDGET, so 200k meant three documents and then a lockout
+    # reported as "insufficient source material". Raise this alongside that budget.
+    # It is a safety net, not a cost control: the spend knob is the context budget.
     llm_user_tokens_per_day: int = int(
         os.getenv("LLM_LIMIT_USER_TOKENS_PER_DAY", "200000")
     )

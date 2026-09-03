@@ -1,0 +1,31 @@
+# Run from the repository root: docker compose -f deploy/compose.yaml --env-file backend/.env up --build
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    env_file: ../backend/.env
+    environment:
+      DECK_AGENT_URL: http://deck-agent:8101
+      AGENT_SHARED_SECRET: ${AGENT_SHARED_SECRET:?Set a shared random secret}
+    ports: ["127.0.0.1:8000:8000"]
+    volumes: ["knowledge:/data", "models:/models"]
+    depends_on: [deck-agent]
+  deck-agent:
+    build:
+      context: ..
+      dockerfile: Agents/A1_pptx/Dockerfile
+    environment:
+      AGENT_SHARED_SECRET: ${AGENT_SHARED_SECRET:?Set a shared random secret}
+      AGENT_WORKERS: 1
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-120b}
+      UNSPLASH_ACCESS_KEY: ${UNSPLASH_ACCESS_KEY:-}
+      PEXELS_API_KEY: ${PEXELS_API_KEY:-}
+      PIXABAY_API_KEY: ${PIXABAY_API_KEY:-}
+    volumes: ["decks:/data"]
+    # Private network only. Browsers receive files through the authenticated API.
+volumes:
+  knowledge:
+  models:
+  decks:

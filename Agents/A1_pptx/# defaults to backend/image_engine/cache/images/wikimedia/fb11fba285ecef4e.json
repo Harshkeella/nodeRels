@@ -1,0 +1,19 @@
+{
+ "id": "17460421",
+ "provider": "wikimedia",
+ "preview_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/Rear_of_rack_at_NERSC_data_center_-_closeup.jpg/1920px-Rear_of_rack_at_NERSC_data_center_-_closeup.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+ "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/Rear_of_rack_at_NERSC_data_center_-_closeup.jpg/1920px-Rear_of_rack_at_NERSC_data_center_-_closeup.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+ "source_url": "https://commons.wikimedia.org/wiki/File:Rear_of_rack_at_NERSC_data_center_-_closeup.jpg",
+ "width": 1920,
+ "height": 2889,
+ "description": "Showing blue LED screens giving MAC address and serial number. White cables are Ethernet cables. Each server features commodity PC outlets including a serial port, VGA port, PS/2 ports, and USB ports.\n\nCC0 waiver: To the extent possible under law, I waive all copyright and related or neighboring rights to this work.",
+ "alt_text": "Rear of rack at NERSC data center - closeup.jpg",
+ "photographer": "Derrick Coetzee from Berkeley, CA, USA",
+ "license": "cc0",
+ "trigger_url": null,
+ "query": "data center server rack",
+ "provider_rank": 1,
+ "local_path": "# defaults to backend/image_engine/cache\\images\\wikimedia\\fb11fba285ecef4e.img",
+ "bytes": 1973814,
+ "downloaded_at": 1788419815.7262702
+}

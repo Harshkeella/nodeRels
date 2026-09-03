@@ -1,0 +1,19 @@
+{
+ "id": "166141046",
+ "provider": "wikimedia",
+ "preview_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Convolutional-Neural-Network-Hindi.png/1920px-Convolutional-Neural-Network-Hindi.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+ "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Convolutional-Neural-Network-Hindi.png/1920px-Convolutional-Neural-Network-Hindi.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+ "source_url": "https://commons.wikimedia.org/wiki/File:Convolutional-Neural-Network-Hindi.png",
+ "width": 1920,
+ "height": 859,
+ "description": "A diagram of a convolutional neural network (CNN) architecture. The diagram shows an input image layer, which in this case is an image of a page with text and an illustration of a rabbit, followed by convolutional and pooling layers that constitute the feature learning process, a vectorisation layer that flattens the data prior to the classification process, that consists of connected layers. The example output suggests that the illustration has a 0.2 chance of being a pig, a 0.3 chance of being a horse and a 0.7 likelihood of being a rabbit. Diagram text is in Hindi. Translation was created using Google Translate, so may be incorrect).",
+ "alt_text": "Convolutional-Neural-Network-Hindi.png",
+ "photographer": "Irisbox",
+ "license": "cc-by",
+ "trigger_url": null,
+ "query": "digital network layers illustration",
+ "provider_rank": 0,
+ "local_path": "# defaults to backend/image_engine/cache\\images\\wikimedia\\ff0afc4060b9ce65.img",
+ "bytes": 326661,
+ "downloaded_at": 1788419821.28789
+}

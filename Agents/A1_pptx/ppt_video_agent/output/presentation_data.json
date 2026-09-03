@@ -1,0 +1,119 @@
+[
+    {
+        "slide_number": 1,
+        "title": "",
+        "text": [
+            "LOGISTIC REGRESSION",
+            "A deep walkthrough of the math: from the sigmoid function to gradient descent"
+        ],
+        "tables": []
+    },
+    {
+        "slide_number": 2,
+        "title": "",
+        "text": [
+            "Why Not Just Use Linear Regression?",
+            "Classification problems ask a yes/no question: will this email be spam, will this tumor be malignant, will this customer churn? The output we want is a probability between 0 and 1 — but a straight line has no such limit.",
+            "Linear regression first computes a weighted sum of the inputs:",
+            "This score z can range from -∞ to +∞. Feeding it directly into a threshold works poorly: outliers shift the line, and nothing stops predictions from exceeding 1 or dropping below 0 — nonsensical for a probability. Logistic regression keeps this linear score, but squashes it through a function that always outputs a valid probability.",
+            "The Core Idea",
+            "Compute a linear combination z of the features, same as linear regression.",
+            "Pass z through the sigmoid function to compress it into (0, 1).",
+            "Interpret the result as P(y = 1 | x) — the probability of the positive class.",
+            "Classify by comparing that probability to a threshold, typically 0.5.",
+            "2"
+        ],
+        "tables": []
+    },
+    {
+        "slide_number": 3,
+        "title": "",
+        "text": [
+            "The Sigmoid Function",
+            "The sigmoid (or logistic) function maps any real number z into the open interval (0, 1). As z grows large and positive, e⁻ᶻ shrinks toward 0, so σ(z) approaches 1. As z becomes very negative, e⁻ᶻ explodes, pulling σ(z) toward 0. At z = 0, the function passes through exactly 0.5 — the natural decision midpoint.",
+            "A useful property — its own derivative:",
+            "This self-referential derivative is exactly why the gradient computation later on turns out so clean.",
+            "3"
+        ],
+        "tables": []
+    },
+    {
+        "slide_number": 4,
+        "title": "",
+        "text": [
+            "The Hypothesis Function & Log-Odds",
+            "Combining the linear score with the sigmoid gives the full model:",
+            "h_θ(x) is interpreted directly as an estimated probability: h_θ(x) = P(y = 1 | x; θ). It answers “given these features and the current parameters, how likely is the positive class?”",
+            "Reading it in reverse: the log-odds (logit)",
+            "This is the algebraic inverse of the sigmoid. It says logistic regression is really just linear regression on the log-odds of the outcome: θᵀx directly measures how much the evidence favors class 1 over class 0 on a log scale. A one-unit increase in a feature xⱼ shifts the log-odds by exactly θⱼ, holding everything else fixed — which is how coefficients in logistic regression are typically interpreted.",
+            "4"
+        ],
+        "tables": []
+    },
+    {
+        "slide_number": 5,
+        "title": "",
+        "text": [
+            "The Decision Boundary",
+            "To turn a probability into a hard label, pick a threshold — usually 0.5:",
+            "Because σ(z) ≥ 0.5 exactly when z ≥ 0, this threshold on the probability translates back into a condition on the raw linear score: predict class 1 whenever θᵀx ≥ 0. Geometrically, the equation θᵀx = 0 defines a hyperplane in feature space — a straight line in 2D, a flat plane in 3D. Everything on one side is classified as 1, everything on the other side as 0.",
+            "This is why plain logistic regression is a linear classifier: the boundary it draws is always straight, even though the probability surface curves smoothly through it. Non-linear boundaries require engineered features (e.g. x² terms) or a non-linear model.",
+            "5"
+        ],
+        "tables": []
+    },
+    {
+        "slide_number": 6,
+        "title": "",
+        "text": [
+            "Measuring Error: Why Not Squared Error?",
+            "Linear regression trains by minimizing squared error. Plugging the sigmoid into that same squared-error formula produces a cost surface that is non-convex — full of local minima — because the sigmoid's curvature breaks the nice bowl shape gradient descent relies on. Instead, logistic regression uses a cost built from the log function, one branch for each true label:",
+            "When the true label is 1:",
+            "When the true label is 0:",
+            "The intuition: if y = 1 but the model predicts h_θ(x) close to 0, -log(h_θ(x)) shoots toward infinity — a severe penalty for confident wrong answers. If the prediction is close to 1, the cost approaches 0 — almost no penalty for confident correct answers. The mirror-image branch handles y = 0. This asymmetric, steep penalty for confidently wrong predictions is what keeps the cost surface convex.",
+            "6"
+        ],
+        "tables": []
+    },
+    {
+        "slide_number": 7,
+        "title": "",
+        "text": [
+            "The Full Cost Function",
+            "This cost falls out naturally from maximum likelihood estimation. Treating each label as a Bernoulli outcome with probability h_θ(x), the likelihood of the entire training set is:",
+            "Maximizing this product directly is numerically awkward (many probabilities multiplied together underflow to 0), so we instead maximize its logarithm — and flip the sign to turn “maximize likelihood” into “minimize cost,” averaged over m examples. That gives the log loss, also called binary cross-entropy:",
+            "Because this J(θ) is convex in θ, gradient-based optimization is guaranteed to find the global minimum.",
+            "7"
+        ],
+        "tables": []
+    },
+    {
+        "slide_number": 8,
+        "title": "",
+        "text": [
+            "Optimizing with Gradient Descent",
+            "There's no closed-form solution for θ the way there is in linear regression, so parameters are learned iteratively. Differentiating J(θ) with respect to each parameter θⱼ — using the chain rule together with σ'(z) = σ(z)(1-σ(z)) from earlier — produces a remarkably clean result:",
+            "Every log and exponential term cancels out, leaving the same form as linear regression's gradient: the average, over all examples, of the prediction error (h_θ(x) - y) scaled by the feature value xⱼ. Each parameter then takes a small step against this gradient:",
+            "α is the learning rate, controlling step size. All θⱼ are updated simultaneously, each iteration nudging predictions closer to the true labels until J(θ) converges to its minimum.",
+            "8"
+        ],
+        "tables": []
+    },
+    {
+        "slide_number": 9,
+        "title": "",
+        "text": [
+            "Putting It All Together",
+            "1",
+            "A linear score θᵀx is squashed by the sigmoid into a valid probability P(y=1|x).",
+            "2",
+            "That probability is thresholded at 0.5 to draw a linear decision boundary in feature space.",
+            "3",
+            "Parameters are fit by maximizing likelihood, equivalent to minimizing convex log loss.",
+            "4",
+            "Gradient descent updates each θⱼ using the same clean form as linear regression: error × feature.",
+            "9"
+        ],
+        "tables": []
+    }
+]

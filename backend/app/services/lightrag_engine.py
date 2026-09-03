@@ -11,6 +11,8 @@ import logging
 import re
 import time
 from collections import OrderedDict
+from contextlib import contextmanager
+from contextvars import ContextVar
 from typing import AsyncIterator
 
 import httpx
@@ -190,7 +192,48 @@ async def _openrouter_complete(
     )
 
 
-async def _record_usage(operation, model, prompt, system_prompt, result) -> None:
+# Heavy work -- whole-document generation and graph extraction -- routes to the
+# long-context provider when one is configured. A ContextVar rather than an
+# argument because the call goes through LightRAG, which owns the signature.
+_heavy = ContextVar("heavy_llm", default=False)
+
+
+@contextmanager
+def heavy():
+    """Route LLM calls made inside this block to the long-context provider."""
+    token = _heavy.set(True)
+    try:
+        yield
+    finally:
+        _heavy.reset(token)
+
+
+def heavy_configured() -> bool:
+    return bool(_settings.heavy_api_key and _settings.heavy_model)
+
+
+def heavy_budget() -> int | None:
+    """Context budget for a heavy call, or None to keep the ordinary one."""
+    return _settings.heavy_context_token_budget if heavy_configured() else None
+
+
+@opik.track(name="heavy_complete", type="llm")
+async def _heavy_complete(
+    prompt, system_prompt, history_messages, keyword_extraction, **kwargs
+) -> str | AsyncIterator[str]:
+    return await openai_complete_if_cache(
+        _settings.heavy_model,
+        prompt,
+        system_prompt=system_prompt,
+        history_messages=history_messages,
+        keyword_extraction=keyword_extraction,
+        api_key=_settings.heavy_api_key,
+        base_url=_settings.heavy_base_url,
+        **kwargs,
+    )
+
+
+async def _record_usage(operation, model, prompt, system_prompt, result, provider=None) -> None:
     """Append the call to the user's ledger.
 
     ponytail: token counts are the same ~4-chars estimate the rate limiter
@@ -200,7 +243,7 @@ async def _record_usage(operation, model, prompt, system_prompt, result) -> None
     """
     output = len(result) // 4 if isinstance(result, str) else 0
     await record(
-        provider="groq" if _settings.groq_api_key else "ollama",
+        provider=provider or ("groq" if _settings.groq_api_key else "ollama"),
         model=model,
         operation=operation,
         input_tokens=(len(prompt) + len(system_prompt or "")) // 4,
@@ -221,18 +264,35 @@ async def llm_model_func(
     the default role and the "extract"/"keyword" roles.
     """
     history_messages = history_messages or []
+    # Keyword extraction is one small call per query -- basic work -- so it stays
+    # on the cheap chain even when it happens inside a heavy block.
+    use_heavy = _heavy.get() and heavy_configured() and not keyword_extraction
 
     async with user_budget(estimate_tokens(prompt, system_prompt)):
         result = await _complete_extract(
-            prompt, system_prompt, history_messages, keyword_extraction, **kwargs
+            prompt, system_prompt, history_messages, keyword_extraction,
+            use_heavy=use_heavy, **kwargs
         )
-    await _record_usage("extract", _settings.groq_extract_model, prompt, system_prompt, result)
+    await _record_usage(
+        "extract",
+        _settings.heavy_model if use_heavy else _settings.groq_extract_model,
+        prompt, system_prompt, result,
+        provider="kktoken" if use_heavy else None,
+    )
     return result
 
 
 async def _complete_extract(
-    prompt, system_prompt, history_messages, keyword_extraction, **kwargs
+    prompt, system_prompt, history_messages, keyword_extraction, use_heavy=False, **kwargs
 ) -> str | AsyncIterator[str]:
+    if use_heavy:
+        try:
+            return await _heavy_complete(
+                prompt, system_prompt, history_messages, keyword_extraction, **kwargs
+            )
+        except Exception as e:
+            logger.warning("Long-context provider failed (%s); falling back to Groq", e)
+
     if _settings.groq_api_key and not _groq_model_on_cooldown(
         _settings.groq_extract_model
     ):
@@ -280,18 +340,33 @@ async def query_llm_func(
     fallback rather than primary — Groq is the low-latency path.
     """
     history_messages = history_messages or []
+    use_heavy = _heavy.get() and heavy_configured()
 
     async with user_budget(estimate_tokens(prompt, system_prompt)):
         result = await _complete_query(
-            prompt, system_prompt, history_messages, keyword_extraction, **kwargs
+            prompt, system_prompt, history_messages, keyword_extraction,
+            use_heavy=use_heavy, **kwargs
         )
-    await _record_usage("query", _settings.groq_model, prompt, system_prompt, result)
+    await _record_usage(
+        "query",
+        _settings.heavy_model if use_heavy else _settings.groq_model,
+        prompt, system_prompt, result,
+        provider="kktoken" if use_heavy else None,
+    )
     return result
 
 
 async def _complete_query(
-    prompt, system_prompt, history_messages, keyword_extraction, **kwargs
+    prompt, system_prompt, history_messages, keyword_extraction, use_heavy=False, **kwargs
 ) -> str | AsyncIterator[str]:
+    if use_heavy:
+        try:
+            return await _heavy_complete(
+                prompt, system_prompt, history_messages, keyword_extraction, **kwargs
+            )
+        except Exception as e:
+            logger.warning("Long-context provider failed (%s); falling back to Groq", e)
+
     if _settings.groq_api_key and not _groq_model_on_cooldown(_settings.groq_model):
         try:
             return await _groq_complete_with_rate_limit_retry(
@@ -318,6 +393,59 @@ async def _complete_query(
     return await _ollama_complete(
         prompt, system_prompt, history_messages, keyword_extraction, **kwargs
     )
+
+
+async def check_heavy_provider() -> bool:
+    """A wrong long-context model name is a 404 on the first generated document,
+    minutes after boot and after the retrieval work is already paid for. The
+    provider lists what the key can reach, so ask it at boot instead."""
+    if not _settings.heavy_api_key:
+        return False
+    base = _settings.heavy_base_url.rstrip("/")
+    if not _settings.heavy_model:
+        logger.warning(
+            "KKTOKEN_API_KEY is set but KKTOKEN_MODEL is empty, so heavy work stays "
+            "on Groq/Ollama. List what your key can reach with: "
+            'curl -H "Authorization: Bearer $KKTOKEN_API_KEY" %s/models',
+            base,
+        )
+        return False
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                f"{base}/models",
+                headers={"Authorization": f"Bearer {_settings.heavy_api_key}"},
+            )
+            resp.raise_for_status()
+            available = [m.get("id", "") for m in resp.json().get("data", [])]
+    except Exception as e:
+        # A rejected key comes back as a 401 here, not a connection error, so the
+        # message has to cover both -- this is what a mistyped key looks like.
+        logger.warning(
+            "Long-context provider at %s rejected the key or is unreachable (%s) - "
+            "heavy work will fall back to Groq/Ollama",
+            base,
+            e,
+        )
+        return False
+
+    if available and _settings.heavy_model not in available:
+        logger.warning(
+            "KKTOKEN_MODEL %r is not in this account's model list (%d available: %s). "
+            "Heavy work will 404 and fall back to Groq/Ollama.",
+            _settings.heavy_model,
+            len(available),
+            ", ".join(sorted(available)[:8]),
+        )
+        return False
+
+    logger.info(
+        "Long-context provider ready: %s via %s (heavy context budget %d tokens)",
+        _settings.heavy_model,
+        base,
+        _settings.heavy_context_token_budget,
+    )
+    return True
 
 
 async def check_ollama_fallback() -> bool:
@@ -433,6 +561,7 @@ async def get_rag() -> LightRAG:
         global _engine_checked
         if not _engine_checked:
             await check_ollama_fallback()
+            await check_heavy_provider()
             _warn_if_context_budget_exceeds_tpm()
             _engine_checked = True
         # binding/model are what LightRAG's boot-time "Role LLM Configuration"

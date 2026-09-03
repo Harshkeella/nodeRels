@@ -9,7 +9,7 @@ import opik
 from lightrag.base import DocStatus
 
 from app.services import dedup, manifest, source_graph
-from app.services.lightrag_engine import get_rag
+from app.services.lightrag_engine import get_rag, heavy
 
 _EXTENSION_SOURCE_TYPE = {
     ".pdf": "pdf",
@@ -122,9 +122,13 @@ async def ingest_text(text: str, file_name: str, source_type: str) -> dict:
     # that were blocking the name (see _clear_blocking_rows).
     for attempt in (0, 1):
         doc_id = f"doc-{uuid.uuid4().hex}"
-        track_id = await rag.ainsert(
-            input=[text], ids=[doc_id], file_paths=[file_name]
-        )
+        # Entity/relationship extraction over every chunk. On the default
+        # gliner backend this never reaches an LLM; on EXTRACTION_BACKEND=llm it
+        # is the heaviest thing the app does, so it takes the long-context route.
+        with heavy():
+            track_id = await rag.ainsert(
+                input=[text], ids=[doc_id], file_paths=[file_name]
+            )
         docs = await rag.aget_docs_by_track_id(track_id)
         status_row = docs.get(doc_id)
         if status_row is not None:

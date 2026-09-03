@@ -1,0 +1,773 @@
+/* Deck Studio — the whole visual system.
+   :root below is the source of truth for the brand: dark editorial, one warm accent,
+   Instrument Serif for voice and Archivo for everything functional. Nothing anywhere
+   else in src/ hardcodes a colour or a font. */
+:root{
+  --void:#0A0A0C; --surface:#121216; --raised:#17171C;
+  --line:rgba(242,238,230,.10); --line-strong:rgba(242,238,230,.20);
+  --ink:#F2EEE6; --muted:#9C978C; --dim:#8A857B;
+  --accent:#FF4A1C; --accent-ink:#0A0A0C;
+  --serif:'Instrument Serif',Georgia,serif;
+  --sans:'Archivo',system-ui,sans-serif;
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--void); color:var(--ink); font-family:var(--sans);
+  font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+}
+body::before{ /* one soft light source, top-left, so the black is not flat */
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:radial-gradient(120vh 90vh at 12% -18%, rgba(255,74,28,.09), transparent 62%);
+}
+.wrap{position:relative; z-index:1; max-width:1180px; margin:0 auto; padding:0 28px 120px}
+button{font:inherit; color:inherit; background:none; border:none; cursor:pointer}
+:focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:3px}
+svg{display:block}
+.sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0)}
+
+/* ── masthead ─────────────────────────────────────────── */
+header{
+  display:flex; align-items:baseline; gap:18px;
+  padding:34px 0 30px; border-bottom:1px solid var(--line); margin-bottom:56px;
+}
+.mark{font-family:var(--serif); font-size:26px; letter-spacing:-.01em; white-space:nowrap}
+.mark em{font-style:italic; color:var(--accent)}
+.status{margin-left:auto; display:flex; align-items:center; gap:9px; color:var(--muted); font-size:13px}
+.dot{width:6px; height:6px; border-radius:50%; background:var(--accent);
+     box-shadow:0 0 0 4px rgba(255,74,28,.15)}
+.dot.off{background:var(--dim); box-shadow:none}
+
+/* ── composer ─────────────────────────────────────────── */
+.composer{
+  background:linear-gradient(180deg,var(--raised),var(--surface));
+  border:1px solid var(--line); border-radius:18px; padding:38px 38px 26px;
+  box-shadow:0 26px 60px -30px rgba(0,0,0,.9), 0 2px 0 rgba(242,238,230,.04) inset;
+  transition:border-color .35s var(--ease), box-shadow .35s var(--ease);
+}
+.composer.dragging{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent),0 26px 60px -30px rgba(0,0,0,.9)}
+.composer h1{font-family:var(--serif); font-weight:400; font-size:clamp(30px,4.4vw,46px);
+  line-height:1.08; letter-spacing:-.015em; margin-bottom:24px; max-width:22ch}
+#prompt{
+  width:100%; min-height:52px; resize:none; overflow:hidden;
+  background:transparent; border:none; color:var(--ink);
+  font-family:var(--sans); font-size:18px; line-height:1.5;
+}
+#prompt::placeholder{color:var(--dim)}
+#prompt:focus{outline:none}
+
+.files{display:flex; flex-wrap:wrap; gap:8px; margin-top:18px}
+.chip{
+  display:inline-flex; align-items:center; gap:8px; padding:6px 8px 6px 12px;
+  border:1px solid var(--line); border-radius:999px; font-size:13px; color:var(--ink);
+  background:rgba(242,238,230,.03);
+}
+.chip span{color:var(--dim); font-variant-numeric:tabular-nums}
+.overflow{width:100%; font-size:13px; color:var(--accent); padding-top:4px}
+
+.bar{display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  margin-top:26px; padding-top:22px; border-top:1px solid var(--line)}
+.attach{display:inline-flex; align-items:center; gap:8px; color:var(--muted);
+  font-size:14px; padding:8px 12px; border-radius:9px; transition:color .2s, background .2s}
+.attach:hover{color:var(--ink); background:rgba(242,238,230,.05)}
+.pills{display:flex; gap:6px; flex-wrap:wrap; margin-left:auto; align-items:center}
+.pill{
+  padding:7px 13px; border-radius:999px; font-size:13px; color:var(--muted);
+  border:1px solid transparent; transition:color .2s,border-color .2s,background .2s;
+  display:inline-flex; align-items:center; gap:7px;
+}
+.pill:hover{color:var(--ink)}
+.pill[aria-pressed=true]{color:var(--ink); border-color:var(--line-strong); background:rgba(242,238,230,.05)}
+.pill i{width:8px; height:8px; border-radius:2px; display:block}
+.pill.toggle[aria-pressed=true]{color:var(--accent); border-color:rgba(255,74,28,.4);
+  background:rgba(255,74,28,.08)}
+.sep{width:1px; height:20px; background:var(--line); margin:0 4px}
+.go{
+  display:inline-flex; align-items:center; gap:10px; padding:12px 22px; border-radius:11px;
+  background:var(--accent); color:var(--accent-ink); font-weight:600; font-size:15px;
+  transition:transform .25s var(--ease), filter .25s, opacity .2s;
+}
+.go:hover:not(:disabled){filter:brightness(1.1); transform:translateY(-1px)}
+.go:active:not(:disabled){transform:translateY(0)}
+.go:disabled{background:rgba(242,238,230,.06); color:var(--dim); cursor:not-allowed}
+.go.busy{background:rgba(242,238,230,.07); color:var(--muted)}
+.spin{width:13px; height:13px; border:1.5px solid currentColor; border-top-color:transparent;
+  border-radius:50%; animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.elapsed{font-variant-numeric:tabular-nums}
+
+.alert{
+  display:flex; gap:12px; margin-top:20px; padding:14px 16px; border-radius:11px;
+  background:rgba(255,74,28,.08); border:1px solid rgba(255,74,28,.3);
+  font-size:14px; line-height:1.5;
+}
+.alert svg{flex:none; margin-top:2px; color:var(--accent)}
+.alert code{font-family:ui-monospace,monospace; font-size:12.5px; color:var(--muted);
+  display:block; margin-top:5px; word-break:break-word}
+.note{margin-top:16px; font-size:13.5px; color:var(--muted)}
+.note b{color:var(--ink); font-weight:500}
+
+/* ── live run: the deck assembles itself while you watch ─ */
+.run{margin-top:22px; padding-top:20px; border-top:1px solid var(--line)}
+.steps{display:flex; flex-direction:column; gap:2px}
+.step{display:flex; align-items:center; gap:11px; font-size:14px; color:var(--dim);
+  padding:5px 0; transition:color .3s var(--ease)}
+.step.on{color:var(--ink)}
+.step.past{color:var(--muted)}
+.step .tick{flex:none; width:15px; height:15px; display:grid; place-items:center}
+.step .bead{width:6px; height:6px; border-radius:50%; background:currentColor; opacity:.45}
+.step.on .bead{background:var(--accent); opacity:1; animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,74,28,.5)}50%{box-shadow:0 0 0 5px rgba(255,74,28,0)}}
+.step .detail{color:var(--dim); font-variant-numeric:tabular-nums}
+.track{height:2px; border-radius:2px; background:rgba(242,238,230,.08); margin-top:14px; overflow:hidden}
+.track i{display:block; height:100%; background:var(--accent); border-radius:2px;
+  transition:width .5s var(--ease)}
+
+/* ── gallery ──────────────────────────────────────────── */
+.gallery{margin-top:64px}
+.gallery-head{display:flex; align-items:baseline; gap:14px; margin-bottom:22px}
+.gallery-head h2{font-family:var(--serif); font-weight:400; font-size:22px; letter-spacing:-.01em}
+.gallery-head span{color:var(--dim); font-size:13px; font-variant-numeric:tabular-nums}
+.grid{display:grid; gap:22px; grid-template-columns:repeat(auto-fill,minmax(268px,1fr))}
+.card{
+  border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--surface);
+  text-align:left; width:100%; display:block;
+  transition:border-color .3s var(--ease), transform .3s var(--ease), box-shadow .3s var(--ease);
+}
+.card:hover{border-color:var(--line-strong); transform:translateY(-3px);
+  box-shadow:0 22px 44px -26px rgba(0,0,0,.95)}
+.card-hit{display:block; width:100%; padding:0; cursor:pointer}
+.card-body{padding:15px 16px 16px; display:flex; gap:12px; align-items:flex-start}
+.card-body h3{font-family:var(--serif); font-weight:400; font-size:18px; line-height:1.25;
+  letter-spacing:-.01em; margin-bottom:5px}
+.card-body p{color:var(--dim); font-size:12.5px; font-variant-numeric:tabular-nums}
+.card-acts{display:flex; gap:2px; margin-left:auto; flex:none}
+.icon-btn{display:grid; place-items:center; width:31px; height:31px; border-radius:8px;
+  color:var(--muted); transition:color .2s, background .2s}
+.icon-btn:hover{color:var(--ink); background:rgba(242,238,230,.08)}
+.icon-btn.danger:hover{color:var(--accent); background:rgba(255,74,28,.1)}
+.icon-btn:disabled{opacity:.25; cursor:default}
+.icon-btn:disabled:hover{background:none; color:var(--muted)}
+
+.empty{border:1px dashed var(--line); border-radius:14px; padding:52px 34px; text-align:center}
+.empty h3{font-family:var(--serif); font-weight:400; font-size:22px; margin-bottom:8px}
+.empty p{color:var(--muted); max-width:44ch; margin:0 auto 22px}
+.seeds{display:flex; gap:9px; flex-wrap:wrap; justify-content:center}
+.seed{padding:8px 14px; border:1px solid var(--line); border-radius:999px;
+  font-size:13.5px; color:var(--muted); transition:color .2s, border-color .2s}
+.seed:hover{color:var(--ink); border-color:var(--line-strong)}
+
+/* ── the slide surface ────────────────────────────────────
+   Geometry comes from the document, not from here: every element is positioned in % of
+   the slide box and sized in cqw, so one stylesheet serves a 74px thumbnail, the canvas
+   and a projector without a single breakpoint. */
+.slide{
+  container-type:inline-size; position:relative; width:100%; overflow:hidden;
+  aspect-ratio:16/9;
+}
+.el{position:absolute; overflow:hidden}
+.el>*{width:100%; height:100%}
+.el-text{
+  display:flex; flex-direction:column; white-space:pre-wrap; overflow-wrap:anywhere;
+}
+.el img{object-fit:cover; display:block}
+
+/* A picture that is loading or has failed says so, in place, at the size it will be.
+   Fading a broken image to nothing -- which this used to do -- leaves a hole that reads
+   as a design decision rather than as a fault the user can do something about. */
+.el-loading, .el-missing{
+  position:absolute; inset:0; display:grid; place-items:center; gap:.8cqw;
+  align-content:center; font-size:2.4cqw; text-align:center;
+  color:rgba(128,128,128,.75); background:rgba(128,128,128,.10);
+  outline:.15cqw dashed rgba(128,128,128,.35); outline-offset:-.3cqw;
+}
+.el-loading{
+  outline:none;
+  background:linear-gradient(100deg,
+    rgba(128,128,128,.09) 30%, rgba(128,128,128,.17) 50%, rgba(128,128,128,.09) 70%)
+    0 0 / 300% 100%;
+  animation:shimmer 1.4s var(--ease, ease) infinite;
+}
+@media (prefers-reduced-motion:reduce){ .el-loading{animation:none} }
+.el-missing button{
+  font:inherit; font-size:2cqw; padding:.5cqw 1.4cqw; border-radius:.6cqw; cursor:pointer;
+  color:inherit; background:rgba(128,128,128,.14); border:.12cqw solid currentColor;
+}
+.el-missing button:hover{background:rgba(128,128,128,.24)}
+.el-shape{width:100%; height:100%}
+.el-table{width:100%; border-collapse:collapse; table-layout:fixed}
+.el-table td{
+  border:.08cqw solid; padding:.55cqw .7cqw; vertical-align:middle;
+  overflow:hidden; text-overflow:ellipsis;
+}
+.el-chart{width:100%; height:100%; overflow:visible}
+
+/* ── the studio shell ─────────────────────────────────────
+   A fixed three-column frame so the canvas never reflows while you drag inside it. */
+.studio{
+  position:fixed; inset:0; z-index:40; display:flex; flex-direction:column;
+  background:var(--void); animation:fade .25s var(--ease);
+}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.studio-body{flex:1; min-height:0; display:flex}
+
+.top{
+  display:flex; align-items:center; gap:14px; padding:0 14px; height:54px; flex:none;
+  border-bottom:1px solid var(--line); background:var(--surface);
+}
+.back{
+  display:inline-flex; align-items:center; gap:6px; padding:7px 12px 7px 8px;
+  border-radius:9px; color:var(--muted); font-size:14px;
+  transition:color .2s, background .2s;
+}
+.back:hover{color:var(--ink); background:rgba(242,238,230,.06)}
+.deck-name{
+  font-family:var(--serif); font-size:19px; letter-spacing:-.01em; color:var(--ink);
+  background:transparent; border:1px solid transparent; border-radius:8px;
+  padding:5px 9px; min-width:12ch; width:clamp(12ch,26ch,32ch);
+}
+.deck-name:hover{border-color:var(--line)}
+.deck-name:focus{outline:none; border-color:var(--line-strong); background:var(--raised)}
+.saved{
+  font-size:12.5px; color:var(--dim); font-variant-numeric:tabular-nums;
+  padding:4px 9px; border-radius:999px; white-space:nowrap;
+}
+.saved.pending{color:var(--muted)}
+.saved.bad{
+  display:inline-flex; align-items:center; gap:6px; color:var(--accent);
+  background:rgba(255,74,28,.1); border:1px solid rgba(255,74,28,.32);
+}
+.top-acts{margin-left:auto; display:flex; align-items:center; gap:6px}
+.dl{
+  display:inline-flex; align-items:center; justify-content:center; gap:7px;
+  color:var(--ink); background:var(--accent); border-radius:9px; text-decoration:none;
+  font-weight:600; transition:filter .2s, transform .2s var(--ease);
+}
+.dl:hover{filter:brightness(1.08); transform:translateY(-1px)}
+.video-open{background:transparent; color:var(--muted); border:1px solid var(--line)}
+.video-open:hover{color:var(--ink); border-color:var(--line-strong); filter:none}
+.top-acts .dl{padding:8px 14px; font-size:13.5px}
+.top-acts .sep{width:1px; height:22px; background:var(--line); margin:0 4px}
+
+/* ── contextual toolbar ───────────────────────────────── */
+.toolbar{
+  display:flex; align-items:center; gap:8px; flex:none; min-height:44px;
+  padding:0 14px; border-bottom:1px solid var(--line); background:var(--void);
+  overflow-x:auto; scrollbar-width:none;
+}
+.toolbar::-webkit-scrollbar{display:none}
+.tb{
+  display:inline-flex; align-items:center; gap:7px; padding:6px 11px; border-radius:8px;
+  font-size:13px; color:var(--muted); white-space:nowrap;
+  transition:color .18s, background .18s;
+}
+.tb:hover{color:var(--ink); background:rgba(242,238,230,.06)}
+.tb.danger:hover{color:var(--accent); background:rgba(255,74,28,.1)}
+.tb-hint{font-size:12.5px; color:var(--dim); margin-left:4px}
+.tb-num{
+  background:var(--raised); color:var(--ink); border:1px solid var(--line);
+  border-radius:7px; padding:5px 7px; font-size:13px; font-variant-numeric:tabular-nums;
+}
+.seg{display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden}
+.seg>button,.seg>.val{
+  min-width:30px; padding:5px 9px; font-size:13px; color:var(--muted); line-height:1.4;
+  border-right:1px solid var(--line); transition:color .18s, background .18s;
+}
+.seg>*:last-child{border-right:none}
+.seg>button:hover{color:var(--ink); background:rgba(242,238,230,.06)}
+.seg>button[aria-pressed=true]{color:var(--accent-ink); background:var(--accent)}
+.seg .val{color:var(--dim); font-variant-numeric:tabular-nums; text-align:center}
+.ff-bold{font-weight:700}
+.ff-italic{font-style:italic; font-family:var(--serif)}
+.ff-underline{text-decoration:underline}
+.spacer{flex:1}
+
+/* ── slide rail ───────────────────────────────────────── */
+.slides{
+  width:186px; flex:none; display:flex; flex-direction:column;
+  border-right:1px solid var(--line); background:var(--surface);
+}
+.slides-list{flex:1; overflow-y:auto; padding:12px 10px; display:flex;
+  flex-direction:column; gap:9px; scrollbar-width:thin}
+.slide-card{position:relative; border-radius:7px}
+.slide-card.drop{outline:2px solid var(--accent); outline-offset:2px}
+.slide-hit{
+  display:flex; gap:8px; align-items:flex-start; width:100%; padding:0;
+  border-radius:6px; cursor:pointer;
+}
+.slide-hit .n{
+  font-size:11px; color:var(--dim); font-variant-numeric:tabular-nums; width:15px;
+  text-align:right; padding-top:3px; flex:none;
+}
+.slide-hit .slide{
+  border-radius:4px; outline:1px solid var(--line); outline-offset:0;
+  transition:outline-color .2s, opacity .2s; opacity:.78;
+}
+.slide-hit:hover .slide{opacity:1}
+.slide-card.on .slide-hit .slide{outline:2px solid var(--accent); opacity:1}
+.slide-card.on .n{color:var(--accent)}
+.slide-card.skipped .slide{opacity:.34}
+.slide-card>.icon-btn{
+  position:absolute; top:2px; right:2px; width:24px; height:24px; opacity:0;
+  background:rgba(10,10,12,.8); backdrop-filter:blur(6px);
+}
+.slide-card:hover>.icon-btn,.slide-card>.icon-btn:focus-visible{opacity:1}
+.menu{
+  position:absolute; top:26px; right:2px; z-index:5; min-width:150px; padding:5px;
+  background:var(--raised); border:1px solid var(--line-strong); border-radius:10px;
+  box-shadow:0 18px 40px -18px rgba(0,0,0,.95); display:flex; flex-direction:column;
+}
+.menu button{
+  text-align:left; padding:7px 10px; border-radius:6px; font-size:13px; color:var(--muted);
+}
+.menu button:hover:not(:disabled){color:var(--ink); background:rgba(242,238,230,.07)}
+.menu button:disabled{opacity:.35; cursor:default}
+.menu button.danger:hover{color:var(--accent); background:rgba(255,74,28,.1)}
+.add-slide{
+  display:flex; align-items:center; justify-content:center; gap:7px; flex:none;
+  padding:12px; font-size:13px; color:var(--muted); border-top:1px solid var(--line);
+  transition:color .2s, background .2s;
+}
+.add-slide:hover{color:var(--ink); background:rgba(242,238,230,.05)}
+
+/* ── canvas ───────────────────────────────────────────── */
+.stage-wrap{flex:1; min-width:0; display:flex; flex-direction:column; background:var(--void)}
+.workspace-tabs{
+  height:38px; flex:none; display:flex; align-items:end; gap:18px; padding:0 18px;
+  border-bottom:1px solid var(--line); background:var(--surface);
+}
+.workspace-tabs button{
+  height:38px; padding:0 2px; color:var(--dim); font-size:12.5px;
+  border-bottom:2px solid transparent;
+}
+.workspace-tabs button:hover{color:var(--ink)}
+.workspace-tabs button.on{color:var(--ink); border-bottom-color:var(--accent)}
+.canvas-scroll{
+  flex:1; min-height:0; overflow:auto; display:grid; place-items:center; padding:26px;
+}
+.canvas-frame{filter:drop-shadow(0 30px 60px rgba(0,0,0,.6))}
+.canvas-slide{border-radius:4px}
+.hit-layer{position:absolute; inset:0; touch-action:none}
+.hit{position:absolute; cursor:move}
+.hit.locked{cursor:default}
+.hit.ghost{opacity:.4}
+.hit:hover{outline:1px solid rgba(255,74,28,.4); outline-offset:0}
+
+.frame{position:absolute; outline:1.5px solid var(--accent); pointer-events:none}
+.handle{
+  position:absolute; width:9px; height:9px; margin:-5px 0 0 -5px; border-radius:2px;
+  background:var(--void); border:1.5px solid var(--accent); pointer-events:auto;
+}
+.h-n,.h-s{cursor:ns-resize}
+.h-e,.h-w{cursor:ew-resize}
+.h-nw,.h-se{cursor:nwse-resize}
+.h-ne,.h-sw{cursor:nesw-resize}
+.handle.rot{
+  left:50%; top:0; margin-top:-26px; border-radius:50%; cursor:grab;
+  background:var(--accent); border-color:var(--void);
+}
+.guide{position:absolute; background:var(--accent); pointer-events:none; opacity:.9}
+.guide.x{top:0; bottom:0; width:1px}
+.guide.y{left:0; right:0; height:1px}
+.marquee{
+  position:absolute; border:1px solid var(--accent); background:rgba(255,74,28,.10);
+  pointer-events:none;
+}
+.grid-overlay{
+  position:absolute; inset:0; pointer-events:none; opacity:.5;
+  background-image:linear-gradient(rgba(128,128,128,.24) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(128,128,128,.24) 1px,transparent 1px);
+  background-size:calc(100%/16) calc(100%/9);
+}
+.inline-edit{
+  position:absolute; z-index:6; margin:0; padding:0; resize:none; overflow:hidden;
+  background:rgba(255,74,28,.06); border:1.5px solid var(--accent); border-radius:2px;
+  white-space:pre-wrap; overflow-wrap:anywhere;
+}
+.inline-edit:focus{outline:none}
+
+.statusbar{
+  display:flex; align-items:center; gap:10px; flex:none; height:38px; padding:0 14px;
+  border-top:1px solid var(--line); font-size:12.5px; color:var(--dim);
+}
+.zoom{display:flex; align-items:center; gap:2px}
+.zoom .mini{min-width:52px; font-variant-numeric:tabular-nums}
+.statusbar .count{font-variant-numeric:tabular-nums}
+
+/* ── explanation video workspace ─────────────────────── */
+.video-workspace{
+  flex:1; min-height:0; overflow:auto; padding:26px clamp(24px,4vw,56px) 34px;
+  display:flex; flex-direction:column; background:var(--void);
+}
+.video-head{
+  width:min(100%,1040px); margin:0 auto 22px; display:flex; align-items:flex-end;
+  justify-content:space-between; gap:24px;
+}
+.video-head h2{font-family:var(--serif); font-size:24px; font-weight:400; margin-bottom:3px}
+.video-head p{color:var(--muted); font-size:13.5px; max-width:65ch}
+.video-stage{
+  width:min(100%,1040px); margin:auto; aspect-ratio:16/9; background:#000;
+  border-radius:12px; overflow:hidden; box-shadow:0 8px 8px rgba(0,0,0,.32);
+}
+.video-stage video{width:100%; height:100%; display:block; background:#000}
+.video-controls{
+  width:min(100%,1040px); margin:16px auto 0; display:flex; align-items:center;
+  justify-content:flex-end; gap:9px;
+}
+.video-controls label{display:flex; align-items:center; gap:7px; color:var(--dim); font-size:12.5px}
+.video-controls select{
+  padding:5px 8px; color:var(--ink); background:var(--raised); border:1px solid var(--line);
+  border-radius:7px;
+}
+.video-controls .dl{padding:7px 13px; font-size:12.5px}
+.video-empty,.video-progress{
+  flex:1; min-height:360px; display:flex; flex-direction:column; align-items:center;
+  justify-content:center; text-align:center; color:var(--muted);
+}
+.video-empty>svg{color:var(--accent); margin-bottom:18px}
+.video-empty h3,.video-progress h3{font-family:var(--serif); color:var(--ink); font-size:25px;
+  font-weight:400; margin-bottom:8px}
+.video-empty>p{max-width:54ch; margin-bottom:22px}
+.video-empty>.go{margin-top:16px}
+.video-empty .alert{max-width:560px; text-align:left}
+.video-empty .alert span{display:block; margin-top:4px; color:var(--dim)}
+.video-progress .spin{width:24px; height:24px; color:var(--accent); margin-bottom:18px}
+.video-progress .track{width:min(520px,70vw); margin:18px 0 8px}
+.video-progress p{font-size:12.5px; color:var(--dim)}
+.mini{
+  padding:4px 9px; border-radius:7px; font-size:12.5px; color:var(--muted);
+  border:1px solid var(--line); transition:color .18s, border-color .18s, background .18s;
+}
+.mini:hover:not(:disabled){color:var(--ink); border-color:var(--line-strong)}
+.mini:disabled{opacity:.35; cursor:default}
+.mini.on{color:var(--accent-ink); background:var(--accent); border-color:var(--accent)}
+.new-deck{margin-left:auto; display:inline-flex; align-items:center; gap:6px}
+
+/* ── left rail + insert panels ────────────────────────── */
+.rail{
+  width:62px; flex:none; display:flex; flex-direction:column; gap:2px; padding:8px 6px;
+  border-right:1px solid var(--line); background:var(--surface); order:-1;
+}
+.rail-btn{
+  display:flex; flex-direction:column; align-items:center; gap:4px; padding:9px 2px;
+  border-radius:9px; font-size:10.5px; color:var(--dim); letter-spacing:.01em;
+  transition:color .18s, background .18s;
+}
+.rail-btn:hover{color:var(--ink); background:rgba(242,238,230,.05)}
+.rail-btn.on{color:var(--accent); background:rgba(255,74,28,.09)}
+.panel{
+  width:286px; flex:none; display:flex; flex-direction:column; order:-1;
+  border-right:1px solid var(--line); background:var(--surface);
+}
+.panel-head{
+  display:flex; align-items:center; justify-content:space-between; flex:none;
+  padding:12px 10px 12px 16px; border-bottom:1px solid var(--line);
+}
+.panel-head h3{font-family:var(--serif); font-weight:400; font-size:16px}
+.panel-body{flex:1; overflow-y:auto; padding:14px; scrollbar-width:thin}
+.hint{font-size:12.5px; color:var(--dim); line-height:1.55; margin-bottom:12px}
+.hint code{font-family:ui-monospace,monospace; font-size:11.5px; color:var(--muted)}
+.hint a{color:var(--muted)}
+
+.layout-grid{display:grid; grid-template-columns:1fr 1fr; gap:9px}
+.layout{border:1px solid var(--line); border-radius:7px; overflow:hidden; text-align:left;
+  transition:border-color .2s, transform .2s var(--ease)}
+.layout:hover{border-color:var(--accent); transform:translateY(-2px)}
+.layout span{display:block; padding:6px 8px; font-size:11.5px; color:var(--muted)}
+
+.stack{display:flex; flex-direction:column; gap:7px}
+.text-preset{
+  padding:11px 13px; border:1px solid var(--line); border-radius:9px; text-align:left;
+  color:var(--ink); font-family:var(--serif); transition:border-color .2s, background .2s;
+}
+.text-preset:hover{border-color:var(--line-strong); background:rgba(242,238,230,.04)}
+
+.tile-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
+.tile{
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px;
+  aspect-ratio:1; border:1px solid var(--line); border-radius:9px; color:var(--muted);
+  transition:border-color .2s, color .2s;
+}
+.tile.wide{grid-column:span 3; aspect-ratio:auto; padding:13px; flex-direction:row}
+.tile:hover{border-color:var(--accent); color:var(--ink)}
+.tile em{font-style:normal; font-size:10.5px}
+.shape-swatch{width:26px; height:22px; display:block}
+.s-ellipse{border-radius:50%}
+.s-triangle{clip-path:polygon(50% 0,100% 100%,0 100%)}
+.s-arrow{clip-path:polygon(0 30%,60% 30%,60% 0,100% 50%,60% 100%,60% 70%,0 70%)}
+.s-line{height:0!important; border-top:2px solid; background:none!important}
+
+.upload{
+  display:flex; align-items:center; justify-content:center; gap:8px; width:100%;
+  padding:11px; margin-bottom:12px; border:1px dashed var(--line-strong); border-radius:9px;
+  font-size:13px; color:var(--muted); transition:color .2s, border-color .2s;
+}
+.upload:hover{color:var(--ink); border-color:var(--accent)}
+.search{display:flex; gap:6px; margin:12px 0}
+.search input{
+  flex:1; min-width:0; padding:8px 11px; border-radius:8px; font-size:13px;
+  background:var(--raised); border:1px solid var(--line); color:var(--ink);
+}
+.search input:focus{outline:none; border-color:var(--line-strong)}
+.search button{
+  padding:8px 13px; border-radius:8px; font-size:13px; background:var(--accent);
+  color:var(--accent-ink); font-weight:500;
+}
+.search button:disabled{background:rgba(242,238,230,.07); color:var(--dim); cursor:not-allowed}
+.shot-grid{display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:10px}
+.shot{position:relative; border-radius:7px; overflow:hidden; aspect-ratio:4/3;
+  border:1px solid var(--line); transition:border-color .2s}
+.shot:hover{border-color:var(--accent)}
+.shot img{width:100%; height:100%; object-fit:cover; display:block}
+.shot span{
+  position:absolute; inset:auto 0 0 0; padding:4px 6px; font-size:9.5px; color:var(--ink);
+  background:linear-gradient(transparent,rgba(0,0,0,.85)); opacity:0;
+  transition:opacity .2s; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.shot:hover span{opacity:1}
+
+/* An upload in flight and one that failed are both a tile in the same grid, at the same
+   size -- so the panel does not jump when a result lands, and a failure is a thing with
+   a button on it rather than a gap where a picture should be. */
+.shot.skeleton{
+  border-style:dashed;
+  background:linear-gradient(100deg,
+    rgba(242,238,230,.04) 30%, rgba(242,238,230,.11) 50%, rgba(242,238,230,.04) 70%)
+    0 0 / 300% 100%;
+  animation:shimmer 1.4s var(--ease) infinite;
+}
+@keyframes shimmer{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){ .shot.skeleton{animation:none} }
+.shot.bad{
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
+  padding:8px; text-align:center; border-color:rgba(255,74,28,.4);
+  background:rgba(255,74,28,.08);
+}
+.shot.bad span{
+  position:static; inset:auto; opacity:1; padding:0; background:none; white-space:normal;
+  font-size:10.5px; line-height:1.35; color:var(--accent);
+}
+.shot.bad button{
+  font:inherit; font-size:11px; padding:3px 10px; border-radius:5px; cursor:pointer;
+  color:var(--ink); background:transparent; border:1px solid var(--line-strong);
+}
+.shot.bad button:hover{border-color:var(--accent); color:var(--accent)}
+
+.alert.small{padding:9px 11px; font-size:12.5px; margin-top:10px}
+
+/* ── AI assistant ─────────────────────────────────────── */
+.ai{display:flex; flex-direction:column; height:100%; min-height:0}
+.ai-log{flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:9px}
+.ai-msg{padding:9px 12px; border-radius:10px; font-size:13px; line-height:1.55}
+.ai-msg.you{background:rgba(242,238,230,.06); color:var(--ink)}
+.ai-msg.ai{background:rgba(255,74,28,.07); border:1px solid rgba(255,74,28,.2); color:var(--ink)}
+.ai-msg.error{background:rgba(255,74,28,.1); border:1px solid rgba(255,74,28,.35); color:var(--accent)}
+.ai-msg.working{display:flex; align-items:center; gap:9px; color:var(--muted)}
+.ai-msg details{margin-top:7px; font-size:12px; color:var(--dim)}
+.ai-msg summary{cursor:pointer}
+.ai-msg details ul{margin:6px 0 0 16px; display:flex; flex-direction:column; gap:3px}
+.ai-compose{
+  display:flex; gap:7px; align-items:flex-end; margin-top:12px; flex:none;
+  padding-top:12px; border-top:1px solid var(--line);
+}
+.ai-compose textarea{
+  flex:1; min-width:0; resize:none; padding:9px 11px; border-radius:9px; font-size:13.5px;
+  background:var(--raised); border:1px solid var(--line); color:var(--ink);
+  font-family:var(--sans); line-height:1.5;
+}
+.ai-compose textarea:focus{outline:none; border-color:var(--line-strong)}
+.go.small{padding:10px; border-radius:9px; flex:none}
+.ai .seeds{margin-top:10px; justify-content:flex-start}
+
+/* ── inspector ────────────────────────────────────────── */
+.inspector{
+  width:272px; flex:none; overflow-y:auto; scrollbar-width:thin;
+  border-left:1px solid var(--line); background:var(--surface);
+}
+.insp{display:flex; flex-direction:column}
+.insp-head{
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding:12px 10px 12px 16px; border-bottom:1px solid var(--line);
+  position:sticky; top:0; background:var(--surface); z-index:2;
+}
+.insp-head b{font-size:13px; font-weight:500; text-transform:capitalize}
+.insp-head-acts{display:flex; gap:2px}
+.insp-block{padding:14px 16px; border-bottom:1px solid var(--line)}
+.insp-block h4{
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  font-size:10.5px; font-weight:500; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--dim); margin-bottom:11px;
+}
+.row{display:flex; align-items:center; gap:10px; margin-bottom:8px; font-size:12.5px}
+.row>span{color:var(--dim); flex:none; width:62px}
+.row-in{flex:1; min-width:0; display:flex; align-items:center; gap:8px}
+.row.wide{flex-direction:column; align-items:stretch; gap:6px}
+.row.wide>span{width:auto}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:0 10px}
+.grid2 .row>span{width:auto; min-width:14px}
+.num{display:flex; align-items:center; gap:3px; flex:1; min-width:0}
+.num input,.row-in input[type=text],.row-in input:not([type]),.row-in select{
+  width:100%; min-width:0; padding:5px 7px; border-radius:6px; font-size:12.5px;
+  background:var(--raised); border:1px solid var(--line); color:var(--ink);
+  font-variant-numeric:tabular-nums;
+}
+.num input:focus,.row-in input:focus,.row-in select:focus{
+  outline:none; border-color:var(--accent);
+}
+.num i{font-style:normal; color:var(--dim); font-size:10.5px; flex:none}
+.row-in input[type=range]{flex:1; accent-color:var(--accent); min-width:0}
+.row-in .val{font-size:11.5px; color:var(--dim); font-variant-numeric:tabular-nums;
+  min-width:34px; text-align:right}
+.toggle{
+  padding:5px 11px; border-radius:999px; font-size:11.5px; color:var(--muted);
+  border:1px solid var(--line);
+}
+.toggle.on{color:var(--accent); border-color:rgba(255,74,28,.42); background:rgba(255,74,28,.1)}
+
+.swatches{display:flex; gap:5px; flex-wrap:wrap}
+.sw{
+  width:22px; height:22px; border-radius:6px; border:1px solid var(--line-strong);
+  position:relative; transition:transform .15s var(--ease);
+}
+.sw:hover{transform:scale(1.12)}
+.sw.on{box-shadow:0 0 0 2px var(--void),0 0 0 3.5px var(--accent)}
+.sw.none{background:transparent; overflow:hidden}
+.sw.none::after{
+  content:''; position:absolute; inset:0; background:
+    linear-gradient(45deg,transparent 44%,var(--accent) 44%,var(--accent) 56%,transparent 56%);
+}
+.sw.custom{display:grid; place-items:center; overflow:hidden; cursor:pointer;
+  background-image:linear-gradient(45deg,#666 25%,transparent 25%,transparent 75%,#666 75%),
+                   linear-gradient(45deg,#666 25%,#333 25%,#333 75%,#666 75%);
+  background-size:8px 8px; background-position:0 0,4px 4px}
+.sw.custom input{opacity:0; width:100%; height:100%; cursor:pointer}
+
+.align-grid{display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px}
+.align-grid .mini{padding:5px 4px; text-align:center}
+.cells{display:flex; flex-direction:column; gap:3px; margin-top:9px; overflow-x:auto}
+.cells-row{display:flex; gap:3px}
+.cells input{
+  flex:1; min-width:44px; padding:4px 6px; font-size:11.5px; border-radius:5px;
+  background:var(--raised); border:1px solid var(--line); color:var(--ink);
+}
+.cells input:disabled{opacity:.3}
+.cells input:focus{outline:none; border-color:var(--accent)}
+.chart-data input:first-child{min-width:56px; color:var(--muted)}
+
+.layers{display:flex; flex-direction:column; gap:1px; max-height:230px; overflow-y:auto}
+.layers li{display:flex; align-items:center; gap:1px; border-radius:6px; padding-right:2px}
+.layers li.on{background:rgba(255,74,28,.1)}
+.layers li:hover{background:rgba(242,238,230,.05)}
+.layers li.on:hover{background:rgba(255,74,28,.14)}
+.layer-hit{
+  flex:1; min-width:0; display:flex; align-items:center; gap:7px; padding:6px 7px;
+  font-size:12px; color:var(--muted); text-align:left;
+}
+.layers li.on .layer-hit{color:var(--ink)}
+.layer-hit span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.layers .icon-btn{width:24px; height:24px; flex:none}
+.layer-acts{display:flex; gap:3px}
+.layer-acts .mini{padding:2px 6px; font-size:12px; line-height:1.4}
+.muted-row{padding:8px 7px; font-size:12px; color:var(--dim)}
+
+.notes-edit{
+  width:100%; resize:vertical; padding:9px 11px; border-radius:8px; font-size:13px;
+  background:var(--raised); border:1px solid var(--line); color:var(--ink);
+  font-family:var(--sans); line-height:1.55;
+}
+.notes-edit:focus{outline:none; border-color:var(--line-strong)}
+.theme-grid{display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:10px}
+.theme{
+  display:flex; flex-direction:column; align-items:flex-start; gap:6px; padding:8px;
+  border:1px solid var(--line); border-radius:8px; font-size:11.5px; color:var(--muted);
+  transition:border-color .2s, color .2s;
+}
+.theme:hover{border-color:var(--line-strong); color:var(--ink)}
+.theme.on{border-color:var(--accent); color:var(--ink)}
+.theme-chips{display:flex; gap:3px}
+.theme-chips i{width:13px; height:13px; border-radius:3px; display:block;
+  border:1px solid rgba(0,0,0,.25)}
+
+/* ── present mode ─────────────────────────────────────── */
+.present{
+  position:fixed; inset:0; z-index:60; background:#000; display:flex;
+  flex-direction:column; align-items:center; justify-content:center;
+}
+.present-stage{width:100%; display:grid; place-items:center; cursor:pointer}
+.present-stage .slide{max-width:min(100vw,calc(100vh * 16 / 9))}
+.present.with-notes .present-stage .slide{max-width:min(100vw,calc((100vh - 150px) * 16 / 9))}
+.present-notes{
+  position:fixed; inset:auto 0 0 0; max-height:150px; overflow-y:auto;
+  padding:14px 30px 20px; background:rgba(10,10,12,.96); border-top:1px solid var(--line);
+  font-size:15px; line-height:1.6; color:var(--muted);
+}
+.present-notes b{display:block; color:var(--dim); font-size:10.5px; letter-spacing:.1em;
+  text-transform:uppercase; font-weight:500; margin-bottom:5px}
+.present-hud{
+  position:fixed; bottom:22px; left:50%; transform:translateX(-50%);
+  display:flex; align-items:center; gap:8px; padding:6px 8px 6px 16px; border-radius:999px;
+  background:rgba(12,12,15,.85); border:1px solid var(--line); backdrop-filter:blur(14px);
+  color:var(--muted); font-size:13px; font-variant-numeric:tabular-nums;
+  opacity:0; transition:opacity .35s var(--ease);
+}
+.present:hover .present-hud,.present-hud:focus-within{opacity:1}
+.present.with-notes .present-hud{bottom:164px}
+
+/* ── motion, and the promise to switch it off ─────────── */
+@keyframes deal{
+  from{opacity:0; transform:translateY(14px) scale(.985); filter:blur(9px)}
+  to{opacity:1; transform:none; filter:blur(0)}
+}
+.deal{animation:deal .62s var(--ease) both}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms !important; transition-duration:.01ms !important}
+}
+
+/* ── narrower desktops, then the small-screen fallback ── */
+@media (max-width:1500px){
+  .inspector{width:248px}
+  .panel{width:252px}
+  .slides{width:158px}
+}
+@media (max-width:1280px){
+  .rail-btn span{display:none}
+  .rail{width:48px}
+  .slides{width:136px}
+  .inspector{width:232px}
+}
+/* Below this the editor is not a good experience and pretending otherwise is worse than
+   saying so. The deck still opens, still presents and still exports. */
+@media (max-width:860px){
+  .studio-body{position:relative}
+  .slides,.inspector,.panel,.rail{display:none}
+  .toolbar{display:none}
+  .studio::after{
+    content:'Editing needs a wider screen. Present and export still work here.';
+    position:fixed; inset:auto 0 0 0; padding:11px 16px; font-size:12.5px;
+    color:var(--dim); background:var(--surface); border-top:1px solid var(--line);
+    text-align:center;
+  }
+  .canvas-scroll{padding:14px}
+}
+@media (max-width:640px){
+  .wrap{padding:0 18px 80px}
+  header{flex-direction:column; align-items:flex-start; gap:10px; padding-bottom:22px}
+  .status{margin-left:0}
+  .composer{padding:26px 22px 20px}
+  .bar{gap:10px}
+  .attach{order:1; padding-left:0}
+  .pills{order:2; margin-left:0; width:100%}
+  .go{order:3; width:100%; justify-content:center}
+  .deck-name{width:auto; flex:1}
+  .top-acts .dl span{display:none}
+}
+/* Embedded nodeRels preview uses the same slide renderer as the canvas. */
+.connected-preview { position:relative; z-index:1; display:flex; flex-direction:column; justify-content:center; min-height:100dvh; background:#f3f4f6; color:#182437; }
+.connected-slide { width:100%; }
+.connected-nav { display:flex; align-items:center; justify-content:center; gap:20px; padding:20px 12px; font-size:13px; }
+.connected-nav button { min-height:36px; border:1px solid #ccd2dc; border-radius:6px; padding:6px 12px; background:#fff; color:#182437; cursor:pointer; }
+.connected-nav button:disabled { opacity:.45; cursor:default; }
+.connected-nav button:focus-visible { outline:2px solid #182437; outline-offset:3px; }
+.connected-message { padding:24px; color:#182437; background:#fff; font:15px/1.6 system-ui; }

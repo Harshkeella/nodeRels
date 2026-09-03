@@ -11,11 +11,13 @@ RUN apt-get update \
 WORKDIR /app
 
 # Requirements first so a source edit does not re-download torch.
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+COPY packages/artifact-core /tmp/artifact-core
+RUN pip install --no-cache-dir /tmp/artifact-core
 
-COPY app ./app
-COPY scripts ./scripts
+COPY backend/app ./app
+COPY backend/scripts ./scripts
 
 # Models are NOT baked in: ~500MB of weights would make every push slow and
 # every rollback slower. Mount a volume here and the first boot fills it once.
@@ -45,4 +47,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=180s --retries=3 \
 # --timeout-graceful-shutdown lets an in-flight ingest finish and the storages
 # flush, instead of leaving a half-written graph behind.
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", \
-     "--workers", "1", "--timeout-graceful-shutdown", "30"]
+     "--workers", "1", "--timeout-graceful-shutdown", "30", "--no-access-log"]

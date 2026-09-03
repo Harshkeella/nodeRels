@@ -1,0 +1,6 @@
+python-pptx
+pywin32; platform_system == "Windows"
+requests
+edge-tts
+sympy>=1.13,<2
+

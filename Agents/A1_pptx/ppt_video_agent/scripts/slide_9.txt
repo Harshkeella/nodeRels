@@ -1,0 +1,7 @@
+Now, let's put everything together. We start with a linear score, which is the dot product of the parameter vector θ and the feature vector x. This linear score is then squashed by the sigmoid function, turning it into a valid probability that y equals 1 given x. This probability is then compared to 0.5 to draw a decision boundary in the feature space. If the probability is greater than 0.5, we predict y equals 1; otherwise, we predict y equals 0.
+
+Next, we fit the parameters by maximizing the likelihood, which is equivalent to minimizing the convex log loss. This process ensures that our model is as accurate as possible in predicting the probabilities of the outcomes.
+
+To update each parameter θ, we use gradient descent. The update rule is the error, which is the difference between the predicted probability and the actual outcome, multiplied by the feature. This process is similar to how we update parameters in linear regression, where we also multiply the error by the feature.
+
+In summary, we start with a linear score, squash it with the sigmoid function to get a probability, use this probability to make a prediction, and then adjust our parameters to minimize the log loss using gradient descent.

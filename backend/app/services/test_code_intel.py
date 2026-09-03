@@ -161,7 +161,7 @@ def test_javascript_needs_no_grammar_to_stay_quiet():
     assert isinstance(result, code_intel.FileSymbols)
     if result.symbols:
         assert result.symbols[0].name == "a"
-        assert result.symbols[0].calls == ["b"]
+        assert [c.name for c in result.symbols[0].calls] == ["b"]
 
 
 def test_the_write_is_committed(ingested):

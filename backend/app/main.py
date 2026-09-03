@@ -1,11 +1,13 @@
 import logging
 import os
+from urllib.parse import urlparse
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import chat, graph, ingest, knowledge_base, me
+from app.api import chat, graph, ingest, knowledge_base, me, artifacts as artifact_api
+from app.api import agent_routing
 from app.core import auth
 from app.core.config import get_settings
 from app.services.lightrag_engine import get_rag, shutdown_rag
@@ -48,15 +50,23 @@ async def lifespan(app: FastAPI):
         logging.getLogger("app.main").warning(
             "Model warmup failed; models will load on first use", exc_info=True
         )
+    from app.services import artifacts
+    from noderels_artifacts.jobs import work
+    artifacts.store().prune(int(os.getenv("ARTIFACT_RETENTION_DAYS", "30")))
+    artifact_workers = [asyncio.create_task(work(artifacts.store(), artifacts.execute)) for _ in range(2)]
     yield
+    for worker in artifact_workers:
+        worker.cancel()
+    await asyncio.gather(*artifact_workers, return_exceptions=True)
     await shutdown_rag()
 
 
 app = FastAPI(title="nodeRels GraphRAG Knowledge Base API", lifespan=lifespan)
 
+studio_origin = urlparse(os.getenv("DECK_STUDIO_URL", "http://localhost:5173"))
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=list(dict.fromkeys([*settings.cors_origins, f"{studio_origin.scheme}://{studio_origin.netloc}"])),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -67,6 +77,8 @@ app.include_router(ingest.router)
 app.include_router(knowledge_base.router)
 app.include_router(chat.router)
 app.include_router(graph.router)
+app.include_router(artifact_api.router)
+app.include_router(agent_routing.router)
 
 
 @app.get("/health")

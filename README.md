@@ -4,7 +4,8 @@
 
 # nodeRels — GraphRAG Knowledge Base
 
-**Turn documents, URLs, and YouTube videos into a searchable knowledge graph you can chat with.**
+**Turn documents, URLs, spreadsheets, code and YouTube videos into a searchable knowledge
+graph you can chat with — then turn the answers into PDFs, decks and narrated videos.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
@@ -12,8 +13,9 @@
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![LightRAG](https://img.shields.io/badge/RAG-LightRAG%20hybrid-6E56CF)](https://github.com/HKUDS/LightRAG)
 [![Embeddings: local](https://img.shields.io/badge/Embeddings-local%20%2F%20no%20API%20key-2EA043)](https://www.sbert.net/)
+[![Agents: MCP](https://img.shields.io/badge/Agents-MCP%20%2F%20PDF%20%C2%B7%20PPTX%20%C2%B7%20video-F97316)](https://modelcontextprotocol.io/)
 
-[Quick start](#prerequisites) · [How it works](#project-flow) · [API](#api-surface-backend) · [Chrome extension](#chrome-extension) · [Layout](#repository-layout)
+[Run it](run.md) · [Why](#why-noderels) · [What you can do](#what-you-can-do-with-it) · [How it works](#project-flow) · [API](#api-surface-backend) · [Layout](#repository-layout)
 
 </div>
 
@@ -24,12 +26,59 @@ URLs, YouTube videos, or pasted text, and it builds a searchable knowledge base
 combining vector similarity search with an automatically extracted entity/relationship
 graph (via [LightRAG](https://github.com/HKUDS/LightRAG)).
 
-The project has two independently runnable parts:
+Ask a question and you get an answer, the sources behind it, and — when you ask
+for one — a finished PDF, slide deck or narrated video built from the same
+evidence.
 
-- **`backend/`** — FastAPI service that owns ingestion, deduplication, the LightRAG
-  engine, and the document inventory.
-- **`frontend/`** — Next.js dashboard for uploading content, browsing the knowledge
-  base, chatting with it, and (soon) exploring the graph.
+---
+
+## Why nodeRels
+
+| | |
+|---|---|
+| **Answers you can audit** | Every answer carries the chain that produced it: source document → matched text → entity → relationship. Open it, follow it, deep-link into the graph. Not a confidence score — the actual path |
+| **Retrieval that finds the exact term** | Dense embeddings *and* a BM25 sparse vector on every point, fused server-side with RRF. An error code, a part number or a surname is findable even when its embedding is nowhere near the question's |
+| **Structure, not just similarity** | A labeled property graph is extracted alongside the vectors, so the system knows that two chunks are about the same entity — and can hop between them |
+| **Your data stays yours** | Embeddings, entity extraction and re-ranking all run locally. It works with **every API key blank** — only answering needs a model, and a local Ollama covers that |
+| **No servers to babysit** | Embedded Qdrant, embedded DuckDB, local graph files, SQLite metadata. No vector-database service, no graph database, no Docker required to start |
+| **Spreadsheets stay exact** | Tabular data goes to DuckDB, not into prose. A question about a number gets real rows from real SQL, with the number format deciding the type — not a language model recalling a cell |
+| **Documents that cannot drift** | Generated PDFs, decks and videos are rendered from an approved snapshot and refused outright when the sources do not support them |
+| **Pay only where it pays** | Chat, keyword extraction and graph building run free on local models and free tiers. An optional long-context provider is used only for whole-document generation, where more evidence is what keeps the output grounded |
+| **Built to add capabilities** | Agents are discovered from a folder, not wired in by hand. One command starts the platform and every agent attached to it |
+
+---
+
+## What you can do with it
+
+| Service | What it does |
+|---|---|
+| **Ingest anything** | PDFs, text, Markdown, spreadsheets, whole folders and code trees, web articles, YouTube transcripts, or pasted text — deduplicated by content hash, so the same document twice costs nothing |
+| **Chat over your knowledge** | Streaming answers with a collapsible source list, persistent sessions grouped by day, and a grounding verdict attached to each message |
+| **Query your spreadsheets in English** | Natural language becomes validated read-only DuckDB SQL and returns exact rows — plus computed columns you can add from chat and undo later |
+| **Explore the graph** | An interactive 2D/3D force-directed view coloured by entity label, searchable, with one-hop expansion from any node |
+| **Understand a codebase** | Classes, functions, methods, inheritance and call edges extracted with `ast` and tree-sitter, including unresolved external calls |
+| **Generate a PDF** | A complete document — headings, paragraphs, tables, code and display equations — with embedded fonts and page numbers |
+| **Generate a presentation** | Deck Studio chooses the template and images; source text, tables and equations remain editable and are paginated without clipping |
+| **Generate a narrated video** | Slides rendered to frames, a voiceover written and recorded per speaking point, and the point being spoken highlighted on screen |
+| **Clip from any tab** | A Manifest V3 Chrome extension that extracts the current page client-side, previews the Markdown, and chats with your base without leaving the page |
+
+---
+
+## How it is put together
+
+- **`backend/`** — FastAPI service that owns authentication, ingestion,
+  deduplication, the LightRAG engine, retrieval, grounding, and the document
+  inventory.
+- **`frontend/`** — Next.js dashboard for uploading content, browsing the
+  knowledge base, chatting with it, and exploring the graph.
+- **`Agents/`** — capability services reached over MCP. `A1_pptx` renders
+  decks and narrated videos and has **no access to the knowledge database**;
+  it receives only the approved content snapshot the API prepared.
+
+One command starts the platform and every agent; another starts every
+front end. See **[run.md](run.md)** for setup and running, and
+[agent architecture and verification](docs/AGENT_ARTIFACTS.md) for the
+boundary in detail.
 
 ---
 
@@ -41,7 +90,8 @@ The project has two independently runnable parts:
 | Framework | FastAPI + Uvicorn |
 | RAG engine | [LightRAG](https://github.com/HKUDS/LightRAG) (`lightrag-hku`) — hybrid vector + graph retrieval |
 | Graph extraction | Local [GLiNER](https://github.com/urchade/GLiNER) encoder (`gliner_small-v2.1`), zero-shot against the `ENTITY_LABELS` ontology — one forward pass per window instead of one LLM call per chunk, so ingest isn't bound by an API rate limit. `EXTRACTION_BACKEND=llm` restores the Groq/Ollama path |
-| LLM | Split by role via LightRAG's `role_llm_configs`: Groq (`llama-3.3-70b-versatile`) for keyword extraction (and for graph building when `EXTRACTION_BACKEND=llm`), OpenRouter (`openrouter/free`, OpenRouter's auto-router over its free models, by default) for answering (chat query generation) — kept on separate keys so ingest and chat don't compete for the same quota. Both fall back to a local Ollama model if their key is unset or the call fails |
+| LLM | Split by role via LightRAG's `role_llm_configs`: Groq (`openai/gpt-oss-20b`) for keyword extraction (and for graph building when `EXTRACTION_BACKEND=llm`), Groq (`openai/gpt-oss-120b`) for answering, with OpenRouter (`openrouter/free`, its auto-router over free models) behind it — kept on separate keys so ingest and chat don't compete for the same quota. Both fall back to a local Ollama model if their key is unset or the call fails |
+| Long-context tier | Optional OpenAI-compatible gateway ([KKtoken](https://kktoken.cc), running [New API](https://github.com/QuantumNous/new-api)) used **only** for the two expensive paths — whole-document generation and LLM graph extraction — with ten times the context budget of a chat turn. Everything else stays on the free tier, and a failure here falls back to it rather than failing the request |
 | Embeddings | Local, via `sentence-transformers` (`all-MiniLM-L6-v2`, 384-dim) — no API key required |
 | Document parsing | PyMuPDF (PDF), `trafilatura` (web articles), `youtube-transcript-api` (YouTube transcripts) |
 | Metadata store | SQLite (`aiosqlite`) — tracks file name, source type, hash, chunk count, size, date added |
@@ -115,6 +165,12 @@ The project has two independently runnable parts:
    its description, source file, and relationships. Above `max_nodes`, LightRAG keeps
    the highest-degree nodes and returns the induced subgraph; nodes left with no
    surviving edges are dropped so they don't float free in the layout.
+9. **Generate** — a message that asks for a file routes to generation instead of a
+   chat answer. The API retrieves as usual, has the model write one complete
+   document, checks it against the retrieved chunks, and then renders: PDFs
+   locally, presentations and narrated videos on the private Deck agent over MCP
+   (`app/services/artifacts.py`). A card appears in the thread and polls while the
+   job runs; the finished file streams back through the API, never from the agent.
 
 ### Spreadsheets
 
@@ -235,10 +291,7 @@ but localhost, because the path parameter reaches the filesystem.
 
 Verify a tree against the filesystem at any time:
 
-```bash
-python -m scripts.verify_depth C:/path/to/repo         # re-ingest, then compare
-python -m scripts.verify_depth --check <source name>   # compare what is stored
-```
+The verifier compares what is stored against the filesystem — see [run.md](run.md#maintenance-scripts).
 
 It reports folders, files and max depth side by side with `os.walk`'s own
 answer, plus the zero-gap chain check: every `Folder` at depth N hangs off
@@ -280,16 +333,13 @@ Source files get their symbols hung off the `CodeFile` leaf
 (:Class)    -[:INHERITS]->       (:Class)
 (:Function | :Method) -[:CALLS]-> (:Function | :Method)
 (:CodeFile) -[:IMPORTS]->        (:CodeFile)
+Tree-sitter grammars are an optional extra install — see [run.md](run.md#one-time-setup).
+python -m pip install -r requirements-codeintel.txt   # tree-sitter grammars + Pillow
 ```
 
-**Python needs no extra dependency** — extraction runs on the standard library's
-`ast`. Other languages go through tree-sitter, which needs grammars from the
-optional extra; without it, code files are still ingested as `CodeFile` leaves
-and simply carry no symbols. Nothing raises either way.
-
-```bash
-pip install -r requirements-codeintel.txt   # tree-sitter grammars + Pillow
-```
+Run this from `backend/` after activating its virtual environment and installing
+the base dependencies in [Running the backend](#running-the-backend). This optional
+file alone does not install the API dependencies.
 
 Call resolution is by name, file scope first and project-wide second, and
 **only when the name is unambiguous**. A resolved call carries `resolved: true`
@@ -358,13 +408,7 @@ code symbols, which are written last — never reaches disk at all.
 
 If a folder was ingested before this, re-scan it:
 
-```bash
-python -m scripts.reingest_folders           # dry run: nodes on disk vs expected
-python -m scripts.reingest_folders --apply   # re-scan every folder source
-
-python -m scripts.verify_depth --check <name>   # is that tree complete?
-python -m scripts.backfill_sources --apply      # Source nodes for older ingests
-```
+Re-scanning is a documented maintenance script — see [run.md](run.md#maintenance-scripts).
 
 ### Node symbols
 
@@ -490,12 +534,7 @@ pay nothing.
 question lists substrings that must appear in the assembled evidence chain, so
 a model swap or a temperature change can't look like an accuracy regression.
 
-```bash
-cd backend
-python -m scripts.eval_retrieval --save before.json
-# ... change retrieval or ontology logic ...
-python -m scripts.eval_retrieval --compare before.json
-```
+Run it before and after any retrieval or ontology change and diff the two scores — see [run.md](run.md#maintenance-scripts).
 
 Rerun it whenever retrieval or ontology logic changes, and add a row whenever a
 real question comes back wrong — that is what makes accuracy a tracked number
@@ -521,72 +560,14 @@ instead of a one-off judgment call.
 | GET | `/api/v1/graph` | Get the entity/relationship graph (`label`, `max_depth`, `max_nodes` query params). Pass a `source:<name>` label to get one upload's subgraph |
 | GET | `/api/v1/graph/sources` | Every `Source` node and nothing else — the hop view's landing state. Exactly `count(Source)` nodes, no edges |
 | GET | `/api/v1/graph/expand` | One hop out from `node_id`: its immediate neighbours and the connecting edges, in both directions. Edge ids match `/api/v1/graph`'s, so results merge without duplicates |
+| GET | `/api/v1/artifacts/{id}` | Generation state for a PDF, deck or video started from chat |
+| POST | `/api/v1/artifacts/{id}/access` | A short-lived preview or edit ticket for that artifact |
+| GET | `/api/v1/artifacts/{id}/file/{name}` | Stream the finished file, range requests included |
 | GET | `/health` | Health check |
 
 ---
 
-## Prerequisites
-
-- **Python 3.12** (a `.venv` already exists in `backend/`)
-- **Node.js 18+** and npm
-- A **Groq API key** ([free tier](https://console.groq.com/keys)) — optional, but
-  recommended for speed/quality
-- **Ollama** running locally (`ollama serve`) with a pulled model (e.g.
-  `ollama pull llama3.2`) — required as a fallback if you don't set a Groq key, or
-  if a Groq call fails
-
----
-
-## Running the backend
-
-```bash
-cd backend
-
-# Activate the existing virtual environment
-# Windows (PowerShell):
-.venv\Scripts\Activate.ps1
-# Windows (cmd):
-.venv\Scripts\activate.bat
-# macOS/Linux:
-source .venv/bin/activate
-
-# Install/update dependencies
-pip install -r requirements.txt
-
-# Configure environment (copy and edit as needed)
-cp .env.example .env
-```
-
-Then edit `backend/.env`. Every setting is documented inline in
-[`backend/.env.example`](backend/.env.example) — that file is the source of truth;
-the ones you'll actually care about first:
-
-```env
-GROQ_API_KEY=            # leave blank to skip Groq and use Ollama only
-OPENROUTER_API_KEY=      # answering fallback; blank falls through to Ollama
-ZENROWS_API_KEY=         # blank falls back to trafilatura for URL scraping
-OPIK_API_KEY=            # blank disables LLM tracing
-EXTRACTION_BACKEND=gliner  # 'llm' for the per-chunk Groq/Ollama path
-```
-
-It runs with **all four keys blank** — embeddings, graph extraction, and
-re-ranking are local; only answering needs an LLM, and Ollama covers that.
-
-Start the API:
-
-```bash
-uvicorn app.main:app --reload --port 8000
-```
-
-> **Upgrading from an earlier build?** Vectors now live in Qdrant, so the old
-> `backend/storage/kb/vdb_*.json` files are dead weight. Delete
-> `backend/storage/` and re-ingest once — nothing migrates them across.
-
-The API is now live at `http://localhost:8000` (docs at `http://localhost:8000/docs`).
-Data is persisted under `backend/storage/` (LightRAG's graph/vector/KV files plus the
-`manifest.sqlite3` inventory), so restarting the server does not lose ingested data.
-
-### LLM tracing (Opik)
+## Observability
 
 If `OPIK_API_KEY` is set, every LLM call is traced to [Opik](https://www.comet.com/opik)
 via `@opik.track` on `app/services/lightrag_engine.py`'s provider functions
@@ -599,82 +580,15 @@ workspace if unset.
 
 ---
 
-## Tests
-
-```bash
-cd backend
-.venv/Scripts/python -m pytest app -q     # the whole backend suite
-
-cd ../frontend
-npm run lint && npx tsc --noEmit
-npm test                                  # session grouping (node --test)
-```
-
-The depth harness is a plain generator, so the folder walker can be checked
-against a tree that is provably deeper than any real one:
-
-```bash
-# 20 levels, each with a .py/.ts/.png/.bin and a node_modules beside it
-python -m app.services.test_folder_ingest ./deep-tree 20
-python -m scripts.verify_depth ./deep-tree/deeptree
-```
-
-`make_deep_tree()` in `app/services/test_folder_ingest.py` is what the depth,
-zero-gap-chain and ignore-at-every-level tests all build on.
-
----
-
-## Running the frontend
-
-```bash
-cd frontend
-
-npm install
-
-# Configure environment (copy and edit as needed)
-cp .env.local.example .env.local
-```
-
-Edit `frontend/.env.local`:
-
-```env
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
-```
-
-Start the dev server:
-
-```bash
-npm run dev
-```
-
-Open `http://localhost:3000` — the public landing page. The app itself lives at
-`/dashboard/knowledge` (the landing page's "Let's start" button goes there).
-
-Other scripts: `npm run build` (production build), `npm run start` (serve production
-build), `npm run lint` (ESLint).
-
----
-
-## Running both together
-
-1. Start Ollama if you're not using Groq: `ollama serve` (and make sure the model in
-   `OLLAMA_MODEL` has been pulled).
-2. Start the backend: `uvicorn app.main:app --reload --port 8000` (from `backend/`,
-   venv activated).
-3. Start the frontend: `npm run dev` (from `frontend/`).
-4. Visit `http://localhost:3000`, upload/paste/link some content, and watch it
-   appear in the **Inventory** table once processed.
-
----
-
 ## Chrome extension
 
 `extension/` is a no-build Manifest V3 popup with two tabs: **Clip** (extract
 the current page client-side with Defuddle, review the Markdown, then add it —
 PDFs and YouTube URLs route to the backend parsers instead) and **Chat**
-(stream an answer without leaving the tab you're on). Load it via
-`chrome://extensions` → Developer mode → Load unpacked → select `extension/`.
-See `extension/README.md` for details.
+(stream an answer without leaving the tab you're on). It carries the same
+mark as the web app, extracts entirely client-side, and never leaves a page
+you did not ask it to clip. See `extension/README.md` for details, and
+[run.md](run.md#chrome-extension) to load it.
 
 ---
 
@@ -727,12 +641,24 @@ nodeRels/
 │   │   ├── lib/api.ts          # typed fetch wrappers around the backend API
 │   │   └── store/knowledge-store.ts  # Zustand store for the document list
 │   └── .env.local.example
+├── Agents/                   # capability services, discovered not wired in
+│   └── A1_pptx/
+│       ├── agent.json        # ports + launch commands read by run.py
+│       ├── backend/          # integrated.py = the private MCP service
+│       ├── ppt_video_agent/  # deck -> narrated MP4 with spoken-point highlighting
+│       └── frontend/         # Deck Studio canvas (Vite)
+├── packages/artifact-core/   # the Document contract both services share
 ├── extension/                # Chrome extension (Manifest V3, no build step)
 │   ├── manifest.json
 │   ├── popup.html / popup.css / popup.js
 │   ├── api.js                # fetch wrappers (mirrors frontend/src/lib/api.ts)
 │   └── markdown-lite.js       # tiny markdown renderer for the chat popup
-├── scripts/gen_logo_assets.py  # regenerates the extension icons from logo.png
+├── deploy/                   # compose.yaml, Plano config, generated agent registry
+├── docs/                     # architecture, security, multi-tenancy, LLM operations
+├── run.py                    # one command for every backend, one for every frontend
+├── run.md                    # setup, running, testing, troubleshooting
+├── scripts/gen_logo_assets.py  # regenerates every icon from logo.png
+├── scripts/verify_artifacts.py # offline PDF/PPTX/MCP regression check
 ├── lightrag_hybrid/          # early standalone prototype, superseded by backend/ — kept for reference, not wired into the app
 └── rag-fullstack-toolkit/   # Claude Code plugin/skills used to scaffold this project
 ```

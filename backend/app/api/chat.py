@@ -22,6 +22,7 @@ from app.services import (
     spreadsheet_query,
 )
 from app.services.lightrag_engine import get_rag
+from app.services import artifacts
 
 logger = logging.getLogger("app.api.chat")
 _settings = get_settings()
@@ -52,6 +53,8 @@ def build_retrieval_param() -> QueryParam:
         mode="mix",
         stream=False,
         enable_rerank=_settings.rerank_enabled,
+        # Not scaled with the heavy budget: a hop names entities for the final
+        # retrieval, it does not assemble a context anyone generates from.
         chunk_top_k=_settings.rerank_top_n,
         max_total_tokens=_settings.query_context_token_budget // 2,
         max_entity_tokens=_settings.query_context_token_budget // 8,
@@ -59,7 +62,15 @@ def build_retrieval_param() -> QueryParam:
     )
 
 
-def build_query_param(history: list[dict]) -> QueryParam:
+def build_query_param(history: list[dict], budget: int | None = None) -> QueryParam:
+    # `budget` overrides the chat ceiling for heavy work on a long-context
+    # provider; the caps below stay derived from the one knob either way.
+    # chunk_top_k has to scale with it: the extra room is worth paying for only
+    # if it buys more evidence chunks, and those are what the grounding check
+    # actually tests a generated document against. Left at the chat value, a 10x
+    # budget would only widen the entity/relation half.
+    scale = max(1, (budget or 0) // _settings.query_context_token_budget)
+    budget = budget or _settings.query_context_token_budget
     return QueryParam(
         mode="mix",
         stream=True,
@@ -70,15 +81,15 @@ def build_query_param(history: list[dict]) -> QueryParam:
         # context (entities + relations + chunks + system prompt). LightRAG's
         # 30,000-token default is larger than any free-tier model's per-minute
         # ceiling, so every chat call 429'd on the primary model.
-        chunk_top_k=_settings.rerank_top_n,
-        max_total_tokens=_settings.query_context_token_budget,
+        chunk_top_k=_settings.rerank_top_n * scale,
+        max_total_tokens=budget,
         # max_total_tokens only budgets the CHUNK half -- the KG half is capped
         # separately (LightRAG defaults: 6,000 entity + 8,000 relation tokens),
         # so leaving these at their defaults lets the context blow past the
         # budget on entities alone and starves chunks to zero. Derived from the
         # one knob rather than three so they can't drift apart.
-        max_entity_tokens=_settings.query_context_token_budget // 4,
-        max_relation_tokens=_settings.query_context_token_budget // 3,
+        max_entity_tokens=budget // 4,
+        max_relation_tokens=budget // 3,
         response_type=(
             "the shortest possible answer that fully answers the question — "
             "a single short paragraph or a tight bullet list, no filler sections"
@@ -126,6 +137,7 @@ async def _persist(
     message: str,
     answer: str,
     evidence: list[dict],
+    artifact_ids: list[str] | None = None,
 ) -> None:
     """Write the finished turn to the session store.
 
@@ -140,7 +152,7 @@ async def _persist(
             logger.warning("Unknown session %s; turn not persisted", session_id)
             return
         await chat_store.add_message(session_id, "user", message)
-        await chat_store.add_message(session_id, "assistant", answer, evidence)
+        await chat_store.add_message(session_id, "assistant", answer, evidence, artifact_ids)
         # First exchange names the thread.
         if session["title"] == chat_store.UNTITLED:
             await chat_store.rename_session(
@@ -151,8 +163,24 @@ async def _persist(
 
 
 async def _chat_stream(
-    message: str, history: list[dict], session_id: str | None = None
+    message: str, history: list[dict], session_id: str | None = None,
+    request_id: str | None = None,
 ) -> AsyncIterator[str]:
+    format = await artifacts.resolve_intent(message)
+    if format:
+        try:
+            artifact = await artifacts.enqueue(message, history, session_id, format, request_id)
+            summary = "Preparing your " + {"pdf": "PDF", "pptx": "presentation", "video": "video"}[format] + " from your knowledge base."
+            yield _sse({"type": "token", "text": summary})
+            yield _sse({"type": "artifact", "artifact": artifact})
+            await _persist(session_id, message, summary, [], [artifact["id"]])
+        except ValueError as exc:
+            yield _sse({"type": "error", "message": str(exc)})
+        except Exception:
+            logger.exception("Artifact submission failed")
+            yield _sse({"type": "error", "message": "Could not start generation. Please retry."})
+        yield _sse({"type": "done"})
+        return
     rag = await get_rag()
 
     # Retrieval decides whether this is a data question -- the worksheet and
@@ -247,7 +275,7 @@ async def _chat_stream(
 async def chat_stream(payload: ChatRequest):
     history = [h.model_dump() for h in payload.history]
     return StreamingResponse(
-        _chat_stream(payload.message, history, payload.session_id),
+        _chat_stream(payload.message, history, payload.session_id, payload.request_id),
         media_type="text/event-stream",
         headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"},
     )

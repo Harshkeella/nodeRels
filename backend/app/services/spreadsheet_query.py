@@ -251,7 +251,7 @@ async def _generate(question: str, schema: str, previous_error: str | None) -> s
     return _FENCE.sub("", str(answer).strip()).strip().rstrip(";")
 
 
-async def answer(question: str, tables: list[str] | None = None) -> dict | None:
+async def answer(question: str, tables: list[str] | None = None, *, read_only: bool = False) -> dict | None:
     """Run the question against `tables`. None means "not a spreadsheet
     question" -- the caller falls back to the document RAG path."""
     schema = schema_context(tables)
@@ -272,6 +272,8 @@ async def answer(question: str, tables: list[str] | None = None) -> dict | None:
         try:
             match = _ADD_COLUMN.match(generated)
             if match:
+                if read_only:
+                    raise SpreadsheetError("Document generation can only read spreadsheet data. Use a SELECT query.")
                 return add_computed_column(match[1], match[2], match[3].strip())
             return run_select(generated)
         except SpreadsheetError as e:

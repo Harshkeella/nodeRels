@@ -1,0 +1,11 @@
+Okay, let's dive into why we use a different cost function in logistic regression compared to linear regression. In linear regression, we minimize squared error, but when we plug the sigmoid function into that same squared error formula, we run into a problem. The sigmoid function's curvature causes the cost surface to become non-convex, which means it's full of local minima. This makes it hard for gradient descent to find the global minimum. 
+
+Instead, logistic regression uses a cost function built from the log function. This cost function has two branches, one for each possible true label. 
+
+First, let's look at the case when the true label is 1. The cost function is -log of the model's prediction, h of theta x. If the model predicts a value close to 0 when the true label is 1, the cost shoots toward infinity. This is a severe penalty for confident wrong answers. On the other hand, if the prediction is close to 1, the cost approaches 0, meaning there's almost no penalty for confident correct answers.
+
+Now, let's consider the case when the true label is 0. The cost function is -log of 1 minus the model's prediction, h of theta x. If the model predicts a value close to 1 when the true label is 0, the cost again shoots toward infinity, giving a severe penalty for confident wrong answers. If the prediction is close to 0, the cost approaches 0, meaning there's almost no penalty for confident correct answers.
+
+This asymmetric, steep penalty for confidently wrong predictions is what keeps the cost surface convex. In other words, it helps ensure that the cost function has a single global minimum, making it easier for gradient descent to find the optimal solution.
+
+That's why we use this log-based cost function in logistic regression instead of squared error. It provides a more straightforward path to finding the best model parameters.

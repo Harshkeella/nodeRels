@@ -9,6 +9,7 @@ import {
   type ChatMessage,
 } from "@/components/chat/chat-message";
 import { ProvenancePanel } from "@/components/chat/provenance-panel";
+import { ArtifactPanel } from "@/components/chat/artifact-panel";
 import { SessionSidebar } from "@/components/chat/session-sidebar";
 import {
   createSession,
@@ -19,6 +20,7 @@ import {
   streamChat,
   type ChatSession,
   type EvidenceSource,
+  type Artifact,
 } from "@/lib/api";
 
 const STARTERS = [
@@ -37,6 +39,7 @@ export default function ChatPage() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openEvidence, setOpenEvidence] = useState<EvidenceSource | null>(null);
+  const [openArtifact, setOpenArtifact] = useState<Artifact | null>(null);
   const [atBottom, setAtBottom] = useState(true);
 
   const abortRef = useRef<AbortController | null>(null);
@@ -111,6 +114,7 @@ export default function ChatPage() {
   }
 
   function newChat() {
+    setOpenArtifact(null);
     abortRef.current?.abort();
     setMessages([]);
     setActiveId(null);
@@ -120,6 +124,7 @@ export default function ChatPage() {
   }
 
   async function selectSession(id: string) {
+    setOpenArtifact(null);
     abortRef.current?.abort();
     setActiveId(id);
     setMobileOpen(false);
@@ -131,6 +136,7 @@ export default function ChatPage() {
           id: m.id,
           role: m.role,
           content: m.content,
+          artifact_ids: m.artifact_ids,
           // Persisted evidence, rebuilt into the shape the source list wants,
           // so an old conversation's provenance buttons work like a live one's.
           evidence: m.evidence,
@@ -201,6 +207,7 @@ export default function ChatPage() {
           onEvidence: (evidence) => patchMessage(assistantId, { evidence }),
           onGrounding: (grounding) => patchMessage(assistantId, { grounding }),
           onTable: (table) => patchMessage(assistantId, { table }),
+          onArtifact: (artifact) => patchMessage(assistantId, { artifact_ids: [artifact.id] }),
           onToken: (chunk) => {
             buffer += chunk;
             patchMessage(assistantId, { content: buffer });
@@ -348,7 +355,8 @@ export default function ChatPage() {
                   <ChatMessageBubble
                     key={m.id}
                     message={m}
-                    onOpenEvidence={setOpenEvidence}
+                    onOpenEvidence={(evidence) => { setOpenArtifact(null); setOpenEvidence(evidence); }}
+                    onOpenArtifact={(artifact) => { setOpenEvidence(null); setOpenArtifact(artifact); }}
                   />
                 ))}
                 <div ref={bottomRef} />
@@ -379,6 +387,7 @@ export default function ChatPage() {
           onClose={() => setOpenEvidence(null)}
         />
       )}
+      {openArtifact && <ArtifactPanel key={openArtifact.id} artifact={openArtifact} onClose={() => setOpenArtifact(null)} />}
     </div>
   );
 }

@@ -104,3 +104,19 @@ def test_truncated_graph_has_no_isolated_nodes_or_orphaned_edges(monkeypatch):
     assert ids == {"a", "b"}
     for e in result.edges:
         assert e.source in ids and e.target in ids
+
+
+def test_both_param_builders_construct():
+    """Each builder is only ever called from one place, so a name that exists in
+    one and not the other stays green here and blows up at runtime -- which is
+    exactly what `chunk_top_k=... * scale` did to every multi-hop sub-retrieval.
+    Constructing both is the whole check."""
+    hop = chat.build_retrieval_param()
+    turn = chat.build_query_param([])
+    heavy = chat.build_query_param([], _settings.query_context_token_budget * 10)
+
+    assert hop.chunk_top_k == turn.chunk_top_k == _settings.rerank_top_n
+    # A heavy budget buys more evidence chunks, not just a wider ceiling.
+    assert heavy.chunk_top_k == _settings.rerank_top_n * 10
+    assert heavy.max_total_tokens == _settings.query_context_token_budget * 10
+    assert turn.max_total_tokens == _settings.query_context_token_budget

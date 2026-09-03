@@ -242,6 +242,7 @@ export interface GroundingVerdict {
 }
 
 export interface ChatStreamHandlers {
+  onArtifact?: (artifact: Artifact) => void;
   onSources?: (sources: ChatSource[]) => void;
   onEvidence?: (evidence: EvidenceSource[]) => void;
   onGrounding?: (verdict: GroundingVerdict) => void;
@@ -261,7 +262,7 @@ export async function streamChat(
   const res = await apiFetch(`${API_BASE_URL}/api/v1/chat/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, history, session_id: sessionId ?? null }),
+    body: JSON.stringify({ message, history, session_id: sessionId ?? null, request_id: crypto.randomUUID() }),
     signal,
   });
   if (!res.ok || !res.body) {
@@ -287,6 +288,7 @@ export async function streamChat(
       const event = JSON.parse(line.slice(5).trim());
 
       if (event.type === "sources") handlers.onSources?.(event.sources);
+      else if (event.type === "artifact") handlers.onArtifact?.(event.artifact);
       else if (event.type === "evidence") handlers.onEvidence?.(event.evidence);
       else if (event.type === "grounding") handlers.onGrounding?.(event.grounding);
       else if (event.type === "table") handlers.onTable?.(event.result);
@@ -305,6 +307,7 @@ export interface ChatSession {
 }
 
 export interface StoredMessage {
+  artifact_ids: string[];
   id: string;
   session_id: string;
   role: "user" | "assistant";
@@ -434,6 +437,34 @@ export interface StorageUsage {
   quota_bytes: number;
   remaining_bytes: number;
   document_count: number;
+}
+
+export interface Artifact {
+  id: string;
+  format: "pdf" | "pptx" | "video";
+  state: "queued" | "running" | "done" | "failed";
+  title: string;
+  error?: string | null;
+  slides?: number;
+}
+
+export async function getArtifact(id: string, signal?: AbortSignal): Promise<Artifact> {
+  const res = await apiFetch(`${API_BASE_URL}/api/v1/artifacts/${encodeURIComponent(id)}`, { signal });
+  if (!res.ok) throw new Error(await parseErrorDetail(res));
+  return res.json();
+}
+
+export async function artifactAccess(id: string, mode: "preview" | "edit" = "preview") {
+  const res = await apiFetch(`${API_BASE_URL}/api/v1/artifacts/${encodeURIComponent(id)}/access`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode }),
+  });
+  if (!res.ok) throw new Error(await parseErrorDetail(res));
+  const data: { ticket: string; studio_url: string } = await res.json();
+  const base = `${API_BASE_URL}/api/v1/artifacts/${encodeURIComponent(id)}`;
+  return {
+    file: (name: string, download = false) => `${base}/file/${encodeURIComponent(name)}?ticket=${encodeURIComponent(data.ticket)}${download ? "&download=1" : ""}`,
+    studio: `${data.studio_url.replace(/\/$/, "")}/#${new URLSearchParams({ bridge: base, ticket: data.ticket, mode, parent: window.location.origin }).toString()}`,
+  };
 }
 
 /**

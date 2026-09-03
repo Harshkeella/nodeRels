@@ -1,4 +1,6 @@
 fastapi>=0.115
+mcp>=1.29,<2
+# Install the shared content/render package first: pip install ../packages/artifact-core
 uvicorn[standard]>=0.32
 python-multipart>=0.0.12
 python-dotenv>=1.0
